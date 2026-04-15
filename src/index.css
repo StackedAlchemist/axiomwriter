@@ -1,0 +1,504 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme CSS Variables ──────────────────────────────────────────────────── */
+:root {
+  /* Dark mode (default) */
+  --axiom-bg:           #080818;
+  --axiom-surface:      #0d0d2b;
+  --axiom-surface2:     #141430;
+  --axiom-border:       rgba(201,168,76,0.15);
+  --axiom-border-light: rgba(201,168,76,0.30);
+  --axiom-text:         #f0ece2;
+  --axiom-muted:        #8a8590;
+}
+
+.light {
+  --axiom-bg:           #f0ede6;
+  --axiom-surface:      #faf8f4;
+  --axiom-surface2:     #ede9e1;
+  --axiom-border:       rgba(120,95,30,0.14);
+  --axiom-border-light: rgba(120,95,30,0.28);
+  --axiom-text:         #1a1208;
+  --axiom-muted:        #6b6050;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-axiom-bg font-sans;
+    color: var(--axiom-text);
+    min-height: 100vh;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-axiom-surface;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-axiom-border-light rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gold-600;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    @apply outline-none ring-2 ring-gold-500 ring-offset-2 ring-offset-axiom-bg;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-gold-500/20 text-gold-300;
+  }
+}
+
+@layer components {
+  /* Input base */
+  .input-base {
+    @apply w-full bg-axiom-surface border border-axiom-border rounded-lg px-4 py-2.5
+           placeholder-slate-500 text-sm
+           focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500/30
+           transition-all duration-200;
+    color: var(--axiom-text);
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-gold-500 hover:bg-gold-400 text-axiom-bg
+           font-semibold text-sm px-5 py-2.5 rounded-lg
+           transition-all duration-200 shadow-glow-gold
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gold-500;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-axiom-surface border border-axiom-border hover:border-axiom-border-light
+           font-medium text-sm px-5 py-2.5 rounded-lg
+           transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    color: var(--axiom-text);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           hover:bg-axiom-surface
+           font-medium text-sm px-3 py-2 rounded-lg
+           transition-all duration-200;
+    color: var(--axiom-muted);
+  }
+  .btn-ghost:hover { color: var(--axiom-text); }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2
+           bg-red-900/30 border border-red-800/50 hover:bg-red-900/50
+           text-red-400 hover:text-red-300
+           font-medium text-sm px-5 py-2.5 rounded-lg
+           transition-all duration-200;
+  }
+
+  /* Card */
+  .card {
+    @apply bg-axiom-surface border border-axiom-border rounded-xl shadow-card;
+  }
+
+  /* Divider */
+  .divider {
+    @apply border-t border-axiom-border;
+  }
+
+  /* Nav item */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg
+           hover:bg-axiom-surface2
+           font-medium text-sm transition-all duration-150 cursor-pointer;
+    color: var(--axiom-muted);
+  }
+  .nav-item:hover { color: var(--axiom-text); }
+
+  .nav-item.active {
+    @apply text-gold-400 bg-gold-500/10 hover:bg-gold-500/15;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-gold {
+    @apply badge bg-gold-500/15 text-gold-400 border border-gold-500/20;
+  }
+
+  .badge-teal {
+    @apply badge bg-teal-500/15 text-teal-400 border border-teal-500/20;
+  }
+
+  /* Icon button */
+  .btn-icon {
+    @apply p-1.5 rounded-lg hover:bg-axiom-surface2
+           transition-all duration-200;
+    color: var(--axiom-muted);
+  }
+  .btn-icon:hover { color: var(--axiom-text); }
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-gold-400 to-gold-300;
+  }
+
+  .text-gradient-teal {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-teal-300;
+  }
+
+  .bg-noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  }
+
+  .border-gradient-gold {
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    background-image: linear-gradient(var(--axiom-surface), var(--axiom-surface)),
+                      linear-gradient(135deg, #c9a84c, #00b4a0);
+    background-origin: border-box;
+  }
+}
+
+/* ── Writing Environment Theme Animations ────────────────────────────────── */
+
+/* Iron Sanctum — subtle candle/torch flicker */
+@keyframes themeFlicker {
+  0%,100% { opacity: 1;    }
+  15%     { opacity: 0.82; }
+  30%     { opacity: 1;    }
+  55%     { opacity: 0.88; }
+  70%     { opacity: 1;    }
+  85%     { opacity: 0.85; }
+}
+.theme-anim-theme-flicker {
+  animation: themeFlicker 4s ease-in-out infinite;
+}
+
+/* The Infinite — slow ambient drift (the panel itself very slightly translates) */
+@keyframes themeDrift {
+  0%,100% { transform: translateY(0)    scale(1.02); }
+  50%     { transform: translateY(-6px) scale(1.02); }
+}
+.theme-anim-theme-drift {
+  animation: themeDrift 18s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+/* Velvet Night — soft opacity glow breathe */
+@keyframes themeSoftGlow {
+  0%,100% { opacity: 0.6; }
+  50%     { opacity: 1;   }
+}
+.theme-anim-theme-soft-glow {
+  animation: themeSoftGlow 6s ease-in-out infinite;
+}
+
+/* The High Keep — slower torch/candle flicker */
+@keyframes themeCandle {
+  0%,100% { opacity: 1;    }
+  20%     { opacity: 0.90; }
+  40%     { opacity: 1;    }
+  60%     { opacity: 0.85; }
+  80%     { opacity: 0.95; }
+}
+.theme-anim-theme-candle {
+  animation: themeCandle 7s ease-in-out infinite;
+}
+
+/* The Ember Forge — slow lava brightness pulse */
+@keyframes themePulse {
+  0%,100% { opacity: 0.5; }
+  50%     { opacity: 0.9; }
+}
+.theme-anim-theme-pulse {
+  animation: themePulse 5s ease-in-out infinite;
+}
+
+/* Whispering Grove — gentle float */
+@keyframes themeFloat {
+  0%,100% { opacity: 0.5; transform: translateY(0);   }
+  33%     { opacity: 0.7; transform: translateY(-4px); }
+  66%     { opacity: 0.6; transform: translateY(2px);  }
+}
+.theme-anim-theme-float {
+  animation: themeFloat 12s ease-in-out infinite;
+}
+
+/* ── Writing Environment Layout Rules ────────────────────────────────────── */
+
+/*
+ * When a writing environment theme is active (data-writing-env is set and non-empty),
+ * the project editor root bg becomes transparent so the fixed theme panels show through.
+ * The sidebar and header retain their surface backgrounds but become slightly translucent,
+ * letting the themed edge panels breathe through.
+ */
+:root[data-writing-env]:not([data-writing-env=""]) .project-detail-root {
+  background: transparent !important;
+}
+
+/* Sidebar wrapper — becomes semi-transparent so left panel bleeds through */
+:root[data-writing-env]:not([data-writing-env=""]) .manuscript-sidebar-wrap {
+  background: rgba(8, 8, 24, 0.80) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Header — slight glassy transparency */
+:root[data-writing-env]:not([data-writing-env=""]) .project-detail-header {
+  background: rgba(13, 13, 43, 0.88) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── TipTap Prose Editor (dark) ──────────────────────────────────────────── */
+.tiptap-prose .ProseMirror {
+  outline: none;
+  min-height: 100%;
+  padding-bottom: 40vh;
+  caret-color: #c9a84c;
+}
+
+.tiptap-prose .ProseMirror p {
+  line-height: 1.85;
+  color: #dde6f5;
+  font-size: 17px;
+  margin-bottom: 1.25em;
+}
+
+.tiptap-prose .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #2e3d5a;
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+.tiptap-prose .ProseMirror h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #f0f4ff;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  line-height: 1.25;
+}
+
+.tiptap-prose .ProseMirror h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+}
+
+.tiptap-prose .ProseMirror h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #dde4f0;
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.tiptap-prose .ProseMirror blockquote {
+  border-left: 3px solid rgba(201,168,76,0.35);
+  padding-left: 1.25rem;
+  margin: 1.5rem 0;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.tiptap-prose .ProseMirror strong { font-weight: 700; color: #f0f4ff; }
+.tiptap-prose .ProseMirror em     { font-style: italic; }
+.tiptap-prose .ProseMirror u      { text-decoration: underline; text-underline-offset: 3px; }
+.tiptap-prose .ProseMirror s      { text-decoration: line-through; color: #64748b; }
+
+.tiptap-prose .ProseMirror mark {
+  background: rgba(201,168,76,0.18);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.tiptap-prose .ProseMirror ul,
+.tiptap-prose .ProseMirror ol {
+  padding-left: 1.75rem;
+  color: #cdd6e8;
+  margin-bottom: 1em;
+}
+
+.tiptap-prose .ProseMirror ul { list-style-type: disc; }
+.tiptap-prose .ProseMirror ol { list-style-type: decimal; }
+.tiptap-prose .ProseMirror li { margin-bottom: 0.3rem; line-height: 1.75; }
+
+.tiptap-prose .ProseMirror hr {
+  border: none;
+  border-top: 1px solid #1a2448;
+  margin: 2.5rem auto;
+  width: 40%;
+}
+
+/* ── TipTap Prose — Light Mode Overrides ────────────────────────────────── */
+.light .tiptap-prose .ProseMirror p                       { color: #1e2a3a; }
+.light .tiptap-prose .ProseMirror p.is-editor-empty:first-child::before { color: #a0a8b8; }
+.light .tiptap-prose .ProseMirror h1                      { color: #111827; }
+.light .tiptap-prose .ProseMirror h2                      { color: #1f2937; }
+.light .tiptap-prose .ProseMirror h3                      { color: #374151; }
+.light .tiptap-prose .ProseMirror strong                  { color: #111827; }
+.light .tiptap-prose .ProseMirror blockquote              { color: #6b7280; }
+.light .tiptap-prose .ProseMirror ul,
+.light .tiptap-prose .ProseMirror ol                      { color: #374151; }
+.light .tiptap-prose .ProseMirror hr                      { border-top-color: #d1d5db; }
+.light .tiptap-prose .ProseMirror s                       { color: #9ca3af; }
+
+/* Typewriter mode */
+.typewriter-mode .ProseMirror {
+  padding-top: 45vh;
+  padding-bottom: 45vh;
+}
+
+/* ── Lore Gap Highlights ─────────────────────────────────────────────────── */
+.lore-gap {
+  border-bottom: 2px dashed rgba(201, 168, 76, 0.45);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  border-radius: 2px;
+}
+
+.lore-gap:hover {
+  background: rgba(201, 168, 76, 0.10);
+  border-bottom-color: rgba(201, 168, 76, 0.85);
+}
+
+/* ── Lore Entry Prose Editor ─────────────────────────────────────────────── */
+.lore-prose .ProseMirror {
+  outline: none;
+  min-height: 180px;
+}
+
+.lore-prose .ProseMirror p {
+  line-height: 1.75;
+  color: #d0daea;
+  font-size: 14px;
+  margin-bottom: 0.9em;
+}
+
+.lore-prose .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #2e3d5a;
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+.lore-prose .ProseMirror h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f0f4ff;
+  margin-top: 1.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.lore-prose .ProseMirror h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.lore-prose .ProseMirror h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #dde4f0;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.lore-prose .ProseMirror strong { font-weight: 700; color: #f0f4ff; }
+.lore-prose .ProseMirror em     { font-style: italic; }
+.lore-prose .ProseMirror ul,
+.lore-prose .ProseMirror ol {
+  padding-left: 1.5rem;
+  color: #d0daea;
+  margin-bottom: 0.8em;
+}
+.lore-prose .ProseMirror ul { list-style-type: disc; }
+.lore-prose .ProseMirror ol { list-style-type: decimal; }
+.lore-prose .ProseMirror li { margin-bottom: 0.25rem; line-height: 1.65; }
+
+.lore-prose .ProseMirror blockquote {
+  border-left: 3px solid rgba(201,168,76,0.3);
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Light mode lore prose */
+.light .lore-prose .ProseMirror p              { color: #374151; }
+.light .lore-prose .ProseMirror h1,
+.light .lore-prose .ProseMirror h2,
+.light .lore-prose .ProseMirror h3             { color: #111827; }
+.light .lore-prose .ProseMirror strong         { color: #111827; }
+.light .lore-prose .ProseMirror ul,
+.light .lore-prose .ProseMirror ol             { color: #374151; }
+.light .lore-prose .ProseMirror blockquote     { color: #6b7280; }
+.light .lore-prose .ProseMirror p.is-editor-empty:first-child::before { color: #9ca3af; }
+
+/* ── Focus mode dim transition ───────────────────────────────────────────── */
+.focus-mode-dim {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.focus-mode-dim:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── Light mode slate text overrides ─────────────────────────────────────── */
+/* Tailwind's slate values are baked at build time with dark-tuned values.
+   These overrides make text readable on light backgrounds. */
+.light .text-slate-100 { color: #1a1208 !important; }
+.light .text-slate-200 { color: #2d2416 !important; }
+.light .text-slate-300 { color: #3d3220 !important; }
+.light .text-slate-400 { color: #5a4a30 !important; }
+.light .text-slate-500 { color: #7a6848 !important; }
+.light .text-slate-600 { color: #8a7858 !important; }
+.light .text-slate-700 { color: #a09070 !important; }
+
+/* Light mode bg overrides for slate */
+.light .bg-slate-700\/30 { background-color: rgba(120,100,60,0.12) !important; }
+.light .bg-slate-500\/10 { background-color: rgba(120,100,60,0.08) !important; }
+.light .border-slate-500\/20 { border-color: rgba(120,100,60,0.20) !important; }
+.light .border-slate-600\/30 { border-color: rgba(120,100,60,0.25) !important; }
