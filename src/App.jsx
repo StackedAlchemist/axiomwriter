@@ -41,6 +41,8 @@ function PageLoader() {
   )
 }
 
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
+
 // ── Onboarding gate (reads Firestore once per session) ───────────────────────
 function OnboardingGate() {
   const { currentUser } = useAuth()
@@ -48,7 +50,7 @@ function OnboardingGate() {
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
 
   useEffect(() => {
-    if (!currentUser) { setChecked(true); return }
+    if (DEMO_MODE || !currentUser) { setChecked(true); return }
     getDoc(doc(db, 'users', currentUser.uid)).then(snap => {
       const complete = snap.data()?.onboardingComplete ?? false
       setNeedsOnboarding(!complete)
