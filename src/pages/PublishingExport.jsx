@@ -8,6 +8,8 @@ import {
 import { useManuscript } from '../hooks/useManuscript'
 import { PLATFORMS, runReadinessCheck, exportManuscript } from '../lib/publishingEngine'
 import LoadingSpinner from '../components/common/LoadingSpinner'
+import { useSubscription } from '../hooks/useSubscription'
+import UpgradePrompt from '../components/subscription/UpgradePrompt'
 
 // ── Status icon ───────────────────────────────────────────────────────────────
 function StatusIcon({ status, size = 'sm' }) {
@@ -132,7 +134,26 @@ export default function PublishingExport() {
     setExporting(false)
   }
 
+  const { canAccess, loading: subLoading } = useSubscription()
+
   if (ms.loading) return <LoadingSpinner fullscreen />
+
+  if (!subLoading && !canAccess('publishing_export')) {
+    return (
+      <div className="flex flex-col h-screen bg-axiom-bg">
+        <header className="h-12 flex items-center px-4 border-b border-axiom-border bg-axiom-surface flex-shrink-0">
+          <button onClick={() => navigate(`/projects/${projectId}`)} className="btn-icon">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <p className="ml-3 text-sm font-semibold text-slate-400">Publishing Export</p>
+        </header>
+        <UpgradePrompt
+          feature="Publishing Export"
+          description="Export your manuscript as a print-ready PDF, EPUB, or DOCX formatted for KDP, IngramSpark, Smashwords, and more. Available on Composer and above."
+        />
+      </div>
+    )
+  }
 
   const platform    = PLATFORMS.find(p => p.id === selectedPlatform) || PLATFORMS[0]
   const passCount   = readiness?.checks.filter(c => c.status === 'pass').length || 0

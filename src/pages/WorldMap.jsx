@@ -14,6 +14,8 @@ import MapToolbar      from '../components/worldmap/MapToolbar'
 import GenerateFromLoreModal  from '../components/worldmap/GenerateFromLoreModal'
 import LocationSidePanel      from '../components/worldmap/LocationSidePanel'
 import LoadingSpinner          from '../components/common/LoadingSpinner'
+import { useSubscription }     from '../hooks/useSubscription'
+import UpgradePrompt           from '../components/subscription/UpgradePrompt'
 
 // ── Export size presets ───────────────────────────────────────────────────────
 const EXPORT_PRESETS = [
@@ -295,7 +297,26 @@ export default function WorldMap() {
   const breadcrumbs = map ? wm.getBreadcrumbs(map.id) : []
 
   // ── Empty state ──────────────────────────────────────────────────────────
+  const { canAccess, loading: subLoading } = useSubscription()
+
   if (wm.loading) return <LoadingSpinner fullscreen />
+
+  if (!subLoading && !canAccess('map_builder')) {
+    return (
+      <div className="flex flex-col h-screen bg-axiom-bg">
+        <header className="h-12 flex items-center px-4 border-b border-axiom-border bg-axiom-surface flex-shrink-0">
+          <button onClick={() => navigate(`/projects/${projectId}`)} className="btn-icon">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <p className="ml-3 text-sm font-semibold text-slate-400">World Map</p>
+        </header>
+        <UpgradePrompt
+          feature="World Map Builder"
+          description="Build interactive world maps linked to your lore bible. Place locations, draw territories, and generate maps from your story's geography. Available on Composer and above."
+        />
+      </div>
+    )
+  }
 
   if (wm.maps.length === 0) {
     return (

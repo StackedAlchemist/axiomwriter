@@ -6,6 +6,8 @@
  */
 import { jsPDF } from 'jspdf'
 import { callAnthropic, extractText, DEFAULT_FAST_MODEL } from '../utils/buildAnthropicRequest'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import { getAuth } from 'firebase/auth'
 
 function strip(html) {
   return (html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -66,8 +68,6 @@ export async function buildCoverPrompt({
   customColors,
   autoPopulate,
 }) {
-  if (!import.meta.env.VITE_ANTHROPIC_API_KEY) return null
-
   const genre = project?.genre || 'Fiction'
 
   // Build context from project data
@@ -151,40 +151,18 @@ Return ONLY valid JSON:
 // ── Step 2: Generate image via Stability AI ───────────────────────────────────
 
 export async function generateCoverImage(prompt, trimSize = TRIM_SIZES[0]) {
-  const key = import.meta.env.VITE_STABILITY_API_KEY
-  if (!key) return null
-
-  // Stability API dimensions: must be multiples of 64, 1024×1536 for portrait
-  const width  = 832
-  const height = 1216
+  const user = getAuth().currentUser
+  if (!user) return null
 
   try {
-    const body = JSON.stringify({
-      text_prompts: [
-        { text: prompt + ', professional book cover art, dramatic lighting, no text, no words', weight: 1 },
-        { text: 'watermark, text, letters, words, logos, blurry, low quality', weight: -1 },
-      ],
-      cfg_scale:   7,
-      samples:     1,
-      steps:       30,
-      width,
-      height,
+    const fn = httpsCallable(getFunctions(undefined, 'us-central1'), 'generateImage')
+    const result = await fn({
+      userId: user.uid,
+      prompt,
+      width:  832,
+      height: 1216,
     })
-    const res = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image', {
-      method:  'POST',
-      headers: {
-        Authorization:  `Bearer ${key}`,
-        'Content-Type': 'application/json',
-        Accept:         'application/json',
-      },
-      body,
-    })
-    if (!res.ok) {
-      console.warn('[Stability AI]', res.status, await res.text())
-      return null
-    }
-    const data = await res.json()
-    const b64  = data.artifacts?.[0]?.base64
+    const b64 = result.data?.base64
     return b64 ? `data:image/png;base64,${b64}` : null
   } catch (err) {
     console.error('[generateCoverImage]', err)
@@ -200,8 +178,6 @@ export async function generateSynopsis({
   loreEntries,
   sceneExcerpts,  // first 20% of manuscript text
 }) {
-  if (!import.meta.env.VITE_ANTHROPIC_API_KEY) return null
-
   const genre    = project?.genre || 'Fiction'
   const title    = project?.title || 'Untitled'
   const existing = project?.synopsis ? `AUTHOR'S OWN SYNOPSIS:\n${project.synopsis}\n\n` : ''

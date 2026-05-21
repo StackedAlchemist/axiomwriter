@@ -13,11 +13,14 @@ import LoreGapsPanel from '../components/lore/LoreGapsPanel'
 import ImportDossierModal from '../components/dossier/ImportDossierModal'
 import DossierCard from '../components/dossier/DossierCard'
 import DossierViewer from '../components/dossier/DossierViewer'
+import { useSubscription } from '../hooks/useSubscription'
+import UpgradePrompt from '../components/subscription/UpgradePrompt'
 
 export default function LoreBible() {
   const { projectId } = useParams()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const { canAccess, loading: subLoading } = useSubscription()
 
   // ── Lore ──────────────────────────────────────────────────────────────────
   const { entries, loading, createEntry, deleteEntry } = useLore(projectId)
@@ -110,6 +113,23 @@ export default function LoreBible() {
 
   const lockedCount = entries.filter(e => e.flexibility === 'locked').length
   const selectedDossier = dossiers.find(d => d.id === selectedDossierId) ?? null
+
+  if (!subLoading && !canAccess('lore_bible')) {
+    return (
+      <div className="flex flex-col h-screen bg-axiom-bg">
+        <header className="h-12 flex items-center px-4 border-b border-axiom-border bg-axiom-surface flex-shrink-0">
+          <button onClick={() => navigate(`/projects/${projectId}`)} className="btn-icon">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <p className="ml-3 text-sm font-semibold text-slate-400">Lore Bible</p>
+        </header>
+        <UpgradePrompt
+          feature="Lore Bible"
+          description="Build a fully searchable world database — locations, factions, history, magic systems, and anything else that defines your story's universe. Available on Writer and above."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-axiom-bg flex flex-col">

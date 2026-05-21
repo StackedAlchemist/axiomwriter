@@ -34,12 +34,20 @@ export function WritingThemeProvider({ children }) {
 
   const currentTheme = THEME_MAP[themeId] ?? DEFAULT_THEME
 
-  // Keep <html data-writing-env="..."> in sync so CSS can react
+  // Keep <html data-writing-env="..."> in sync and expose accent as CSS var
   useEffect(() => {
     const root = document.documentElement
     root.setAttribute('data-writing-env', themeId === 'none' ? '' : themeId)
-    return () => root.setAttribute('data-writing-env', '')
-  }, [themeId])
+    if (currentTheme.id !== 'none') {
+      root.style.setProperty('--theme-accent-rgb', currentTheme.accentRgb)
+    } else {
+      root.style.removeProperty('--theme-accent-rgb')
+    }
+    return () => {
+      root.setAttribute('data-writing-env', '')
+      root.style.removeProperty('--theme-accent-rgb')
+    }
+  }, [themeId, currentTheme])
 
   // Persist and apply
   const setTheme = useCallback((id) => {

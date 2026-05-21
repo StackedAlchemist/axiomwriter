@@ -42,9 +42,12 @@ export function useManuscript(projectId) {
   const [structure,          setStructure]          = useState(null)
   const [loading,            setLoading]            = useState(true)
   const [error,              setError]              = useState(null)
-  const [activeSceneId,      setActiveSceneId]      = useState(null)
-  const [activeSceneContent, setActiveSceneContent] = useState(null)
-  const [sceneLoading,       setSceneLoading]       = useState(false)
+  const [activeSceneId,       setActiveSceneId]       = useState(null)
+  const [activeSceneContent,  setActiveSceneContent]  = useState(null)
+  const [sceneLoading,        setSceneLoading]        = useState(false)
+  const [activeChapterId,     setActiveChapterId]     = useState(null)
+  const [chapterSceneContents,setChapterSceneContents] = useState({})
+  const [chapterLoading,      setChapterLoading]      = useState(false)
 
   // Subscribe to project document
   useEffect(() => {
@@ -74,22 +77,49 @@ export function useManuscript(projectId) {
     }))
   }, [projectId])
 
-  // Load a scene's content on demand
+  // Load a single scene's content
   const loadScene = useCallback(async (sceneId) => {
     if (!sceneId) { setActiveSceneId(null); setActiveSceneContent(null); return }
+    setActiveChapterId(null)
+    setChapterSceneContents({})
     setActiveSceneId(sceneId)
     setSceneLoading(true)
     try {
       const snap = await getDoc(doc(db, 'projects', projectId, 'scenes', sceneId))
       setActiveSceneContent(snap.exists() ? snap.data() : { content: '', notes: '' })
     } catch (err) {
-      // Offline or permission error — open an empty editor so the user can still write
       console.warn('[loadScene]', err.message)
       setActiveSceneContent({ content: '', notes: '' })
     } finally {
       setSceneLoading(false)
     }
   }, [projectId])
+
+  // Load all scenes in a chapter at once
+  const loadChapter = useCallback(async (chapterId) => {
+    if (!structure) return
+    const chapter = getAllChapters(structure).find(ch => ch.id === chapterId)
+    if (!chapter) return
+    setActiveSceneId(null)
+    setActiveSceneContent(null)
+    setActiveChapterId(chapterId)
+    setChapterLoading(true)
+    try {
+      const pairs = await Promise.all(
+        (chapter.scenes || []).map(async (scene) => {
+          try {
+            const snap = await getDoc(doc(db, 'projects', projectId, 'scenes', scene.id))
+            return [scene.id, snap.exists() ? snap.data() : { content: '' }]
+          } catch {
+            return [scene.id, { content: '' }]
+          }
+        })
+      )
+      setChapterSceneContents(Object.fromEntries(pairs))
+    } finally {
+      setChapterLoading(false)
+    }
+  }, [projectId, structure])
 
   // Save scene content + update word count in structure
   const saveSceneContent = useCallback(async (sceneId, content, wordCount) => {
@@ -274,7 +304,8 @@ export function useManuscript(projectId) {
   return {
     project, structure, loading, error,
     activeSceneId, activeSceneContent, sceneLoading,
-    loadScene, saveSceneContent,
+    activeChapterId, chapterSceneContents, chapterLoading,
+    loadScene, loadChapter, saveSceneContent,
     addPart, addChapter, addScene,
     updateSceneMeta, renameChapter, renamePart,
     deleteScene, deleteChapter,

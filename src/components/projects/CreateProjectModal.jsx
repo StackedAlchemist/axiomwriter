@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react'
-import { X, Feather, Loader2, Sparkles, PenLine } from 'lucide-react'
+import React, { useState } from 'react'
+import { X, Feather, Loader2, Sparkles, PenLine, Lock } from 'lucide-react'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
+import { useSubscription } from '../../hooks/useSubscription'
+import PricingModal from '../subscription/PricingModal'
 import { v4 as uuidv4 } from 'uuid'
 
 const GENRES = ['Fantasy', 'Sci-Fi', 'Romance', 'Thriller', 'Mystery', 'Horror', 'Literary Fiction', 'Young Adult', 'Historical Fiction', 'Other']
@@ -29,11 +31,13 @@ const INITIAL_STRUCTURE = () => {
 
 export default function CreateProjectModal({ onClose, onCreated }) {
   const { currentUser } = useAuth()
+  const { canAccess } = useSubscription()
+  const [showPricing, setShowPricing] = useState(false)
 
   const [form, setForm] = useState({
     title:        '',
     seriesName:   '',
-    genre:        'Fantasy',
+    genre:        '',
     synopsis:     '',
     assistedMode: false,
   })
@@ -73,6 +77,7 @@ export default function CreateProjectModal({ onClose, onCreated }) {
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-axiom-surface border border-axiom-border rounded-2xl shadow-card w-full max-w-lg animate-slide-up">
 
@@ -108,7 +113,7 @@ export default function CreateProjectModal({ onClose, onCreated }) {
               required
               value={form.title}
               onChange={handleChange}
-              placeholder="The Name of the Wind"
+              placeholder="My Book Title"
               className="input-base"
               autoFocus
             />
@@ -121,7 +126,7 @@ export default function CreateProjectModal({ onClose, onCreated }) {
               type="text"
               value={form.seriesName}
               onChange={handleChange}
-              placeholder="The Kingkiller Chronicle"
+              placeholder="Series Title"
               className="input-base"
             />
           </div>
@@ -129,6 +134,7 @@ export default function CreateProjectModal({ onClose, onCreated }) {
           <div>
             <label className="input-label">Genre</label>
             <select name="genre" value={form.genre} onChange={handleChange} className="input-base">
+              <option value="">Select a genre</option>
               {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
@@ -166,18 +172,25 @@ export default function CreateProjectModal({ onClose, onCreated }) {
               </button>
               <button
                 type="button"
-                onClick={() => setForm(p => ({ ...p, assistedMode: true }))}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  form.assistedMode
+                onClick={() => canAccess('composer_mode')
+                  ? setForm(p => ({ ...p, assistedMode: true }))
+                  : setShowPricing(true)}
+                className={`p-3 rounded-xl border text-left transition-all relative ${
+                  form.assistedMode && canAccess('composer_mode')
                     ? 'border-gold-500/40 bg-gold-500/10'
                     : 'border-axiom-border bg-axiom-surface2 hover:border-axiom-border-light'
                 }`}
               >
+                {!canAccess('composer_mode') && (
+                  <Lock className="w-3 h-3 text-slate-600 absolute top-2 right-2" />
+                )}
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <Sparkles className={`w-3.5 h-3.5 ${form.assistedMode ? 'text-gold-400' : 'text-slate-500'}`} />
-                  <span className={`text-xs font-semibold ${form.assistedMode ? 'text-gold-400' : 'text-slate-300'}`}>AI-Assisted</span>
+                  <Sparkles className={`w-3.5 h-3.5 ${form.assistedMode && canAccess('composer_mode') ? 'text-gold-400' : 'text-slate-500'}`} />
+                  <span className={`text-xs font-semibold ${form.assistedMode && canAccess('composer_mode') ? 'text-gold-400' : 'text-slate-300'}`}>AI-Assisted</span>
                 </div>
-                <p className="text-[10px] text-slate-600 leading-snug">Composer + suggestions on</p>
+                <p className="text-[10px] text-slate-600 leading-snug">
+                  {canAccess('composer_mode') ? 'Composer + suggestions on' : 'Composer plan required'}
+                </p>
               </button>
             </div>
           </div>
@@ -193,5 +206,13 @@ export default function CreateProjectModal({ onClose, onCreated }) {
         </form>
       </div>
     </div>
+
+    {showPricing && (
+      <PricingModal
+        onClose={() => setShowPricing(false)}
+        highlightFeature="AI-Assisted Mode"
+      />
+    )}
+    </>
   )
 }

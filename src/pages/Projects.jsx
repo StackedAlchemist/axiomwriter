@@ -6,11 +6,13 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../contexts/AuthContext'
-import { BookOpen, Plus, Search, Archive, Library, ChevronRight, Trash2 } from 'lucide-react'
+import { BookOpen, Plus, Search, Archive, Library, ChevronRight, Trash2, Lock } from 'lucide-react'
 import CreateProjectModal from '../components/projects/CreateProjectModal'
 import ProjectCard from '../components/projects/ProjectCard'
 import CreateSeriesModal from '../components/series/CreateSeriesModal'
 import { useSeries } from '../hooks/useSeries'
+import { useSubscription } from '../hooks/useSubscription'
+import PricingModal from '../components/subscription/PricingModal'
 
 const GENRES = ['All', 'Fantasy', 'Sci-Fi', 'Romance', 'Thriller', 'Mystery', 'Horror', 'Literary', 'YA', 'Historical', 'Other']
 const BOOK_PALETTE = ['#c9a84c', '#2dd4bf', '#a78bfa', '#f97316', '#38bdf8', '#fb7185']
@@ -26,8 +28,19 @@ export default function Projects() {
   const [view,      setView]      = useState('active') // 'active' | 'archived' | 'trash'
   const [showCreate,      setShowCreate]      = useState(false)
   const [showCreateSeries, setShowCreateSeries] = useState(false)
+  const [showPricing,     setShowPricing]     = useState(false)
 
   const { series, createSeries, deleteSeries } = useSeries(currentUser?.uid)
+  const { canAccess, tier } = useSubscription()
+
+  function handleNewProject() {
+    const activeCount = projects.filter(p => p.status !== 'archived' && p.status !== 'trashed').length
+    if (!canAccess('unlimited_projects') && activeCount >= tier.projectLimit) {
+      setShowPricing(true)
+    } else {
+      setShowCreate(true)
+    }
+  }
 
   useEffect(() => {
     if (!currentUser) return
@@ -73,7 +86,7 @@ export default function Projects() {
     await deleteDoc(doc(db, 'projects', projectId))
   }
 
-  const activeProjects   = projects.filter(p => !p.status || p.status === 'active')
+  const activeProjects   = projects.filter(p => p.status !== 'archived' && p.status !== 'trashed')
   const archivedProjects = projects.filter(p => p.status === 'archived')
   const trashedProjects  = projects.filter(p => p.status === 'trashed')
 
@@ -147,7 +160,7 @@ export default function Projects() {
                 <Library className="w-4 h-4" />
                 New Series
               </button>
-              <button onClick={() => setShowCreate(true)} className="btn-primary text-sm">
+              <button onClick={handleNewProject} className="btn-primary text-sm">
                 <Plus className="w-4 h-4" />
                 New Project
               </button>
@@ -303,7 +316,7 @@ export default function Projects() {
               key={project.id}
               project={project}
               onClick={() => navigate(`/projects/${project.id}`)}
-              onArchive={project.status === 'active' || !project.status ? handleArchive : undefined}
+              onArchive={project.status !== 'archived' && project.status !== 'trashed' ? handleArchive : undefined}
               onRestore={(project.status === 'archived' || project.status === 'trashed') ? handleRestore : undefined}
               onTrash={project.status === 'archived' ? handleTrash : undefined}
               onDeleteForever={project.status === 'trashed' ? handleDeleteForever : undefined}
@@ -328,7 +341,7 @@ export default function Projects() {
             Every great story starts with a single project. Create yours and begin building
             your world — one scene at a time.
           </p>
-          <button onClick={() => setShowCreate(true)} className="btn-primary">
+          <button onClick={handleNewProject} className="btn-primary">
             <Plus className="w-4 h-4" />
             Create First Project
           </button>
@@ -368,6 +381,13 @@ export default function Projects() {
         <CreateSeriesModal
           onClose={() => setShowCreateSeries(false)}
           onCreated={handleCreateSeries}
+        />
+      )}
+
+      {showPricing && (
+        <PricingModal
+          onClose={() => setShowPricing(false)}
+          highlightFeature="Unlimited Projects"
         />
       )}
     </div>

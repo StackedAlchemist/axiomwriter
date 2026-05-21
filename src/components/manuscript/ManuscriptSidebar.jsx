@@ -8,7 +8,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   ChevronRight, ChevronDown, Plus, Trash2, GripVertical,
-  BookOpen, FileText, Layers, PanelLeftClose, PanelLeftOpen,
+  BookOpen, FileText, Layers, PanelLeftClose, PanelLeftOpen, Pencil,
 } from 'lucide-react'
 import { getAllChapters } from '../../hooks/useManuscript'
 import WritingGoalBar from './WritingGoalBar'
@@ -76,32 +76,41 @@ function SortableScene({ scene, isActive, onClick, onDelete, onRename, chapterId
         <span
           className="flex-1 truncate"
           onDoubleClick={e => { e.stopPropagation(); setEditing(true) }}
-          title="Double-click to rename"
         >
           {scene.title || 'Untitled Scene'}
         </span>
       )}
 
       {!editing && scene.wordCount > 0 && (
-        <span className="text-[10px] text-slate-700 flex-shrink-0">
+        <span className="text-[10px] text-slate-700 flex-shrink-0 group-hover:hidden">
           {scene.wordCount >= 1000 ? `${(scene.wordCount/1000).toFixed(1)}k` : scene.wordCount}
         </span>
       )}
 
       {!editing && (
-        <button
-          onClick={e => { e.stopPropagation(); onDelete(scene.id, chapterId) }}
-          className="opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-red-400 flex-shrink-0 p-0.5 transition-opacity"
-        >
-          <Trash2 className="w-2.5 h-2.5" />
-        </button>
+        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 flex-shrink-0">
+          <button
+            onClick={e => { e.stopPropagation(); setEditing(true) }}
+            className="p-0.5 text-slate-600 hover:text-gold-400 transition-colors"
+            title="Rename scene"
+          >
+            <Pencil className="w-2.5 h-2.5" />
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onDelete(scene.id, chapterId) }}
+            className="p-0.5 text-slate-600 hover:text-red-400 transition-colors"
+            title="Delete scene"
+          >
+            <Trash2 className="w-2.5 h-2.5" />
+          </button>
+        </div>
       )}
     </div>
   )
 }
 
 // ── Chapter section ───────────────────────────────────────────────────────────
-function ChapterSection({ chapter, activeSceneId, onSceneClick, onAddScene, onDeleteScene, onRenameChapter, onRenameScene, onDeleteChapter, onReorderScenes, partId }) {
+function ChapterSection({ chapter, activeSceneId, activeChapterId, onSceneClick, onChapterClick, onAddScene, onDeleteScene, onRenameChapter, onRenameScene, onDeleteChapter, onReorderScenes, partId }) {
   const [expanded,  setExpanded]  = useState(true)
   const [editing,   setEditing]   = useState(false)
   const [title,     setTitle]     = useState(chapter.title)
@@ -127,11 +136,11 @@ function ChapterSection({ chapter, activeSceneId, onSceneClick, onAddScene, onDe
 
   return (
     <div className="mb-1">
-      <div className="group flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-axiom-surface2 transition-colors">
+      <div className={`group flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-axiom-surface2 transition-colors ${activeChapterId === chapter.id ? 'bg-axiom-surface2' : ''}`}>
         <button onClick={() => setExpanded(p => !p)} className="flex-shrink-0 text-slate-600 hover:text-slate-300">
           {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
         </button>
-        <BookOpen className="w-3 h-3 text-slate-600 flex-shrink-0" />
+        <BookOpen className={`w-3 h-3 flex-shrink-0 ${activeChapterId === chapter.id ? 'text-gold-400' : 'text-slate-600'}`} />
 
         {editing ? (
           <input
@@ -145,7 +154,8 @@ function ChapterSection({ chapter, activeSceneId, onSceneClick, onAddScene, onDe
           />
         ) : (
           <span
-            className="flex-1 text-xs font-medium text-slate-400 truncate cursor-text"
+            className={`flex-1 text-xs font-medium truncate cursor-pointer hover:text-slate-200 transition-colors ${activeChapterId === chapter.id ? 'text-gold-300' : 'text-slate-400'}`}
+            onClick={() => onChapterClick?.(chapter.id)}
             onDoubleClick={() => setEditing(true)}
           >
             {chapter.title}
@@ -153,6 +163,9 @@ function ChapterSection({ chapter, activeSceneId, onSceneClick, onAddScene, onDe
         )}
 
         <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 flex-shrink-0">
+          <button onClick={() => setEditing(true)} className="p-0.5 text-slate-600 hover:text-gold-400" title="Rename chapter">
+            <Pencil className="w-2.5 h-2.5" />
+          </button>
           <button onClick={() => onAddScene(chapter.id, partId)} className="p-0.5 text-slate-600 hover:text-teal-400" title="Add scene">
             <Plus className="w-3 h-3" />
           </button>
@@ -202,8 +215,8 @@ function ChapterSection({ chapter, activeSceneId, onSceneClick, onAddScene, onDe
 
 // ── Main sidebar ──────────────────────────────────────────────────────────────
 export default function ManuscriptSidebar({
-  structure, activeSceneId, projectId,
-  onSceneClick, onAddChapter, onAddPart, onAddScene,
+  structure, activeSceneId, activeChapterId, projectId,
+  onSceneClick, onChapterClick, onAddChapter, onAddPart, onAddScene,
   onRenameChapter, onRenamePart, onRenameScene, onDeleteScene, onDeleteChapter,
   onReorderScenes, onReorderChapters,
   onToggle, isOpen,
@@ -255,7 +268,9 @@ export default function ManuscriptSidebar({
             key={part.id}
             part={part}
             activeSceneId={activeSceneId}
+            activeChapterId={activeChapterId}
             onSceneClick={onSceneClick}
+            onChapterClick={onChapterClick}
             onAddChapter={onAddChapter}
             onAddScene={onAddScene}
             onRenameChapter={onRenameChapter}
@@ -272,7 +287,9 @@ export default function ManuscriptSidebar({
             key={ch.id}
             chapter={ch}
             activeSceneId={activeSceneId}
+            activeChapterId={activeChapterId}
             onSceneClick={onSceneClick}
+            onChapterClick={onChapterClick}
             onAddScene={onAddScene}
             onDeleteScene={onDeleteScene}
             onRenameChapter={onRenameChapter}
@@ -320,7 +337,7 @@ export default function ManuscriptSidebar({
   )
 }
 
-function PartSection({ part, activeSceneId, onSceneClick, onAddChapter, onAddScene, onRenameChapter, onRenamePart, onRenameScene, onDeleteScene, onDeleteChapter, onReorderScenes }) {
+function PartSection({ part, activeSceneId, activeChapterId, onSceneClick, onChapterClick, onAddChapter, onAddScene, onRenameChapter, onRenamePart, onRenameScene, onDeleteScene, onDeleteChapter, onReorderScenes }) {
   const [expanded, setExpanded] = useState(true)
   const [editing,  setEditing]  = useState(false)
   const [title,    setTitle]    = useState(part.title)
@@ -359,7 +376,9 @@ function PartSection({ part, activeSceneId, onSceneClick, onAddChapter, onAddSce
           <ChapterSection
             chapter={ch}
             activeSceneId={activeSceneId}
+            activeChapterId={activeChapterId}
             onSceneClick={onSceneClick}
+            onChapterClick={onChapterClick}
             onAddScene={onAddScene}
             onDeleteScene={onDeleteScene}
             onRenameChapter={onRenameChapter}

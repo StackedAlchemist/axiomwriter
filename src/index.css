@@ -271,6 +271,12 @@
   -webkit-backdrop-filter: blur(12px);
 }
 
+/* Scene editor writing area — picks up the active theme's accent tint so the
+   writing box feels immersed in the environment rather than cut off from it. */
+:root[data-writing-env]:not([data-writing-env=""]) .scene-editor-wrap {
+  background: rgba(var(--theme-accent-rgb, 8,8,24), 0.06) !important;
+}
+
 /* ── TipTap Prose Editor (dark) ──────────────────────────────────────────── */
 .tiptap-prose .ProseMirror {
   outline: none;

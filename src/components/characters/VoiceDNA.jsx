@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { X, Mic, AlertTriangle, Sparkles, Loader2 } from 'lucide-react'
-import Anthropic from '@anthropic-ai/sdk'
+import { callAnthropic, extractText } from '../../utils/buildAnthropicRequest'
 
 function Section({ title, description, icon: Icon, accent = 'gold', children }) {
   const colors = accent === 'teal'
@@ -86,16 +86,6 @@ function VoicePreview({ character, voice }) {
     setResult('')
     setError('')
     try {
-      const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-      if (!apiKey) {
-        setError('VITE_ANTHROPIC_API_KEY not set in environment.')
-        setLoading(false)
-        return
-      }
-
-      const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
-
-      // Build voice profile context
       const voiceContext = [
         voice.speechPatterns   && `Speech patterns: ${voice.speechPatterns}`,
         voice.vocabularyLevel  && `Vocabulary level: ${voice.vocabularyLevel}`,
@@ -120,13 +110,13 @@ Rewrite the following line of dialogue or narration in this character's authenti
 Original line:
 ${sampleLine}`
 
-      const message = await client.messages.create({
+      const data = await callAnthropic({
         model:      'claude-haiku-4-5-20251001',
         max_tokens: 300,
         messages:   [{ role: 'user', content: prompt }],
       })
 
-      setResult(message.content[0]?.text ?? '')
+      setResult(extractText(data))
     } catch (err) {
       setError(err.message ?? 'Something went wrong.')
     } finally {

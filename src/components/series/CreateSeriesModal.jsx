@@ -6,7 +6,7 @@ const GENRES = ['Fantasy', 'Sci-Fi', 'Romance', 'Thriller', 'Mystery', 'Horror',
 export default function CreateSeriesModal({ onClose, onCreated, initial }) {
   const [name,        setName]        = useState(initial?.name        || '')
   const [description, setDescription] = useState(initial?.description || '')
-  const [genre,       setGenre]       = useState(initial?.genre       || 'Fantasy')
+  const [genre,       setGenre]       = useState(initial?.genre       || '')
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState('')
 
@@ -58,7 +58,7 @@ export default function CreateSeriesModal({ onClose, onCreated, initial }) {
             <input
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="e.g. The Stormcaller Chronicles"
+              placeholder="e.g. The City of Stars Series"
               className="input-base w-full"
               autoFocus
             />
@@ -73,6 +73,7 @@ export default function CreateSeriesModal({ onClose, onCreated, initial }) {
               onChange={e => setGenre(e.target.value)}
               className="input-base w-full"
             >
+              <option value="">Select a genre</option>
               {GENRES.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>

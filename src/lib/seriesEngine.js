@@ -22,9 +22,6 @@ function strip(html = '') {
  * @returns {Promise<{issues: Array<{type, bookA, bookB, description}>, summary: string}>}
  */
 export async function checkContinuity({ series, sortedBooks, bookData }) {
-  if (!import.meta.env.VITE_ANTHROPIC_API_KEY) {
-    return { issues: [], summary: 'No API key configured.' }
-  }
 
   // Build context: character facts per book
   const bookContexts = sortedBooks.map(book => {

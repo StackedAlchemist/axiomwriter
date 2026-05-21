@@ -18,6 +18,8 @@ import {
   calcSpineWidth,
 } from '../lib/coverEngine'
 import LoadingSpinner from '../components/common/LoadingSpinner'
+import { useSubscription } from '../hooks/useSubscription'
+import UpgradePrompt from '../components/subscription/UpgradePrompt'
 
 // ── Gradient preview palettes ─────────────────────────────────────────────────
 const PALETTE_GRADIENTS = {
@@ -304,7 +306,7 @@ export default function CoverStudio() {
     })
 
     if (!prompts) {
-      setGenStep('Claude prompt generation failed. Check your API key.')
+      setGenStep('Cover prompt generation failed. Please try again.')
       setGenerating(false)
       return
     }
@@ -312,24 +314,20 @@ export default function CoverStudio() {
     setPromptA(prompts.promptA)
     setPromptB(prompts.promptB)
 
-    // Step 2: Generate images simultaneously (if Stability AI key present)
-    if (import.meta.env.VITE_STABILITY_API_KEY) {
-      setGenStep('Generating two cover variations via Stability AI…')
-      const trim = TRIM_SIZES.find(t => t.id === trimSizeId)
-      const [imgA, imgB] = await Promise.all([
-        generateCoverImage(prompts.promptA, trim),
-        generateCoverImage(prompts.promptB, trim),
-      ])
-      setImageA(imgA)
-      setImageB(imgB)
-      if (!imgA && !imgB) {
-        setGenStep('Image generation failed. Check your Stability AI key.')
-      } else {
-        setGenStep('')
-        setActiveVariant(imgA ? 'A' : 'B')
-      }
+    // Step 2: Generate images simultaneously via server-side Stability AI
+    setGenStep('Generating two cover variations…')
+    const trim = TRIM_SIZES.find(t => t.id === trimSizeId)
+    const [imgA, imgB] = await Promise.all([
+      generateCoverImage(prompts.promptA, trim),
+      generateCoverImage(prompts.promptB, trim),
+    ])
+    setImageA(imgA)
+    setImageB(imgB)
+    if (!imgA && !imgB) {
+      setGenStep('Image generation failed. Please try again.')
     } else {
-      setGenStep('Prompts ready. Add VITE_STABILITY_API_KEY to .env to generate images.')
+      setGenStep('')
+      setActiveVariant(imgA ? 'A' : 'B')
     }
 
     setGenerating(false)
@@ -412,7 +410,26 @@ export default function CoverStudio() {
     exportSpreadPDF(canvas, trimSizeId, pageCount, ms.project?.title)
   }
 
+  const { canAccess, loading: subLoading } = useSubscription()
+
   if (ms.loading) return <LoadingSpinner fullscreen />
+
+  if (!subLoading && !canAccess('cover_generator')) {
+    return (
+      <div className="flex flex-col h-screen bg-axiom-bg">
+        <header className="h-12 flex items-center px-4 border-b border-axiom-border bg-axiom-surface flex-shrink-0">
+          <button onClick={() => navigate(`/projects/${projectId}`)} className="btn-icon">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <p className="ml-3 text-sm font-semibold text-slate-400">Cover Studio</p>
+        </header>
+        <UpgradePrompt
+          feature="Cover Studio"
+          description="Design professional book covers with AI-assisted generation, typography controls, and print-ready export. Available on Composer and above."
+        />
+      </div>
+    )
+  }
 
   const project   = ms.project
   const title     = project?.title || 'Untitled'
@@ -605,18 +622,6 @@ export default function CoverStudio() {
             <ArtistImportPanel onImageLoaded={img => { setArtistImage(img); setImageA(null); setImageB(null) }} currentImage={artistImage} />
 
             {/* No Stability key warning */}
-            {!import.meta.env.VITE_STABILITY_API_KEY && (
-              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-gold-500/5 border border-gold-500/20">
-                <AlertTriangle className="w-4 h-4 text-gold-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-[10px] font-semibold text-gold-300">Stability AI key needed</p>
-                  <p className="text-[9px] text-slate-600 mt-0.5 leading-relaxed">
-                    Add <code className="text-slate-500">VITE_STABILITY_API_KEY</code> to .env to generate images. Claude will still build your optimized prompt.
-                  </p>
-                </div>
-              </div>
-            )}
-
             {/* Generate button */}
             <button
               onClick={handleGenerate}
@@ -711,8 +716,8 @@ export default function CoverStudio() {
               className="input-base text-xs w-full resize-none leading-relaxed"
             />
 
-            {/* Prompted text — shows the optimized prompt if no Stability key */}
-            {promptA && !import.meta.env.VITE_STABILITY_API_KEY && (
+            {/* Optimized prompts — always visible after generation for reference */}
+            {promptA && (
               <details className="text-[10px] text-slate-700">
                 <summary className="cursor-pointer hover:text-slate-500 transition-colors">View Claude-optimized image prompts</summary>
                 <div className="mt-2 space-y-2">
@@ -726,7 +731,6 @@ export default function CoverStudio() {
                       <p className="text-[9px] text-slate-500 leading-relaxed">{promptB}</p>
                     </div>
                   )}
-                  <p className="text-[9px] text-slate-700">Use these with Midjourney, DALL-E 3, or any image generation service.</p>
                 </div>
               </details>
             )}

@@ -32,6 +32,7 @@ const PublishingExport  = lazy(() => import('./pages/PublishingExport'))
 const Settings          = lazy(() => import('./pages/Settings'))
 const UserProfile       = lazy(() => import('./components/profile/UserProfile'))
 const SeriesView        = lazy(() => import('./pages/SeriesView'))
+const ReaderView        = lazy(() => import('./pages/ReaderView'))
 
 function PageLoader() {
   return (
@@ -69,10 +70,11 @@ export default function App() {
     <AuthProvider>
       <ErrorBoundary>
         <Routes>
-          {/* Public auth routes */}
+          {/* Public routes */}
           <Route path="/login"           element={<Login />} />
           <Route path="/signup"          element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/read/:shareId"   element={<Suspense fallback={<PageLoader />}><ReaderView /></Suspense>} />
 
           {/* Protected app routes */}
           <Route element={<ProtectedRoute />}>

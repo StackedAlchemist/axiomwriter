@@ -40,7 +40,7 @@ function daysUntilDeletion(trashedAt) {
 
 export default function ProjectCard({ project, onClick, onArchive, onRestore, onTrash, onDeleteForever }) {
   const gradient = GENRE_COLORS[project.genre] ?? GENRE_COLORS['Other']
-  const status = project.status ?? 'active'
+  const status = (project.status === 'archived' || project.status === 'trashed') ? project.status : 'active'
 
   const [menuOpen,    setMenuOpen]    = useState(false)
   const [confirming,  setConfirming]  = useState(null) // 'trash' | 'deleteForever' | null
@@ -104,19 +104,20 @@ export default function ProjectCard({ project, onClick, onArchive, onRestore, on
             </span>
           )}
         </div>
+      </div>
 
-        {/* 3-dot menu */}
-        <div ref={menuRef} className="absolute top-2 right-2" onClick={e => e.stopPropagation()}>
-          <button
-            onClick={handleMenuToggle}
-            className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg bg-axiom-bg/70 border border-axiom-border text-slate-400 hover:text-slate-100 transition-all duration-150"
-            title="Project options"
-          >
-            <MoreHorizontal className="w-3.5 h-3.5" />
-          </button>
+      {/* 3-dot menu — lives outside the h-32 overflow-hidden cover so the dropdown isn't clipped */}
+      <div ref={menuRef} className="absolute top-2 right-2" onClick={e => e.stopPropagation()}>
+        <button
+          onClick={handleMenuToggle}
+          className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg bg-axiom-bg/70 border border-axiom-border text-slate-400 hover:text-slate-100 transition-all duration-150"
+          title="Project options"
+        >
+          <MoreHorizontal className="w-3.5 h-3.5" />
+        </button>
 
-          {menuOpen && (
-            <div className="absolute right-0 top-9 w-52 bg-axiom-surface border border-axiom-border rounded-xl shadow-card animate-fade-in z-20 overflow-hidden">
+        {menuOpen && (
+          <div className="absolute right-0 top-9 w-52 bg-axiom-surface border border-axiom-border rounded-xl shadow-card animate-fade-in z-20 overflow-hidden">
 
               {/* ── Default menu ── */}
               {!confirming && (
@@ -259,7 +260,6 @@ export default function ProjectCard({ project, onClick, onArchive, onRestore, on
             </div>
           )}
         </div>
-      </div>
 
       {/* Info */}
       <div className={`p-4 flex flex-col flex-1 ${status !== 'active' ? 'opacity-60' : ''}`}>

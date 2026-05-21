@@ -24,8 +24,7 @@ import { useWritingTheme } from '../../contexts/WritingThemeContext'
 export default function ThemeBackground() {
   const { currentTheme } = useWritingTheme()
 
-  // No-op when no theme is chosen
-  if (!currentTheme || !currentTheme.image) return null
+  if (!currentTheme || (!currentTheme.image && !currentTheme.cssBackground)) return null
 
   return (
     <>
@@ -53,26 +52,25 @@ function ThemePanel({ side, theme }) {
     ? `linear-gradient(to right, rgba(0,0,0,0.1) 0%, ${theme.fadeColor} 100%)`
     : `linear-gradient(to left, rgba(0,0,0,0.1) 0%, ${theme.fadeColor} 100%)`
 
-  // Position the image so each panel shows the correct side of the panoramic image
   const bgPosition = isLeft ? 'left center' : 'right center'
+
+  const panelBackground = theme.image
+    ? { backgroundImage: `url(${theme.image})`, backgroundPosition: bgPosition, backgroundSize: 'cover', backgroundRepeat: 'no-repeat' }
+    : { background: theme.cssBackground }
 
   return (
     <div
       aria-hidden="true"
       style={{
-        position:       'fixed',
-        top:            0,
-        bottom:         0,
+        position:      'fixed',
+        top:           0,
+        bottom:        0,
         [isLeft ? 'left' : 'right']: 0,
-        width:          '15vw',
-        zIndex:         1,
-        pointerEvents:  'none',
-        overflow:       'hidden',
-        // The theme image
-        backgroundImage:    `url(${theme.image})`,
-        backgroundPosition: bgPosition,
-        backgroundSize:     'cover',
-        backgroundRepeat:   'no-repeat',
+        width:         '15vw',
+        zIndex:        1,
+        pointerEvents: 'none',
+        overflow:      'hidden',
+        ...panelBackground,
       }}
     >
       {/* Atmospheric tint overlay — gives each theme its color warmth */}

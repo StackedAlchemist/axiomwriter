@@ -43,7 +43,7 @@ export function useSeries(userId) {
       uid:         userId,
       name:        name.trim(),
       description: description?.trim() || '',
-      genre:       genre || 'Fantasy',
+      genre:       genre || '',
       books:       [],
       createdAt:   serverTimestamp(),
       updatedAt:   serverTimestamp(),

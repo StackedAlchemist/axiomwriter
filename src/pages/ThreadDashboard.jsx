@@ -10,6 +10,8 @@ import ThreadDetailPanel from '../components/threads/ThreadDetailPanel'
 import AddThreadModal from '../components/threads/AddThreadModal'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import { getAllChapters } from '../hooks/useManuscript'
+import { useSubscription } from '../hooks/useSubscription'
+import UpgradePrompt from '../components/subscription/UpgradePrompt'
 
 export default function ThreadDashboard() {
   const { projectId } = useParams()
@@ -44,7 +46,26 @@ export default function ThreadDashboard() {
     navigate(`/projects/${projectId}`, { state: { openSceneId: sceneId } })
   }
 
+  const { canAccess, loading: subLoading } = useSubscription()
+
   if (ms.loading) return <LoadingSpinner fullscreen />
+
+  if (!subLoading && !canAccess('thread_detector')) {
+    return (
+      <div className="flex flex-col h-screen bg-axiom-bg">
+        <header className="h-12 flex items-center px-4 border-b border-axiom-border bg-axiom-surface flex-shrink-0">
+          <button onClick={() => navigate(`/projects/${projectId}`)} className="btn-icon">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <p className="ml-3 text-sm font-semibold text-slate-400">Plot Threads</p>
+        </header>
+        <UpgradePrompt
+          feature="Thread Detector"
+          description="Track every narrative thread across your manuscript — character arcs, subplots, foreshadowing, and unresolved conflicts. Available on Writer and above."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-axiom-bg flex flex-col">

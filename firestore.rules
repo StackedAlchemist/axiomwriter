@@ -1,0 +1,170 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function isProjectOwner(projectId) {
+      return isAuth() &&
+        get(/databases/$(database)/documents/projects/$(projectId)).data.userId == uid();
+    }
+
+    function isSeriesOwner(seriesId) {
+      return isAuth() &&
+        get(/databases/$(database)/documents/series/$(seriesId)).data.uid == uid();
+    }
+
+    // ── Users ──────────────────────────────────────────────────────────────────
+    // Each user owns exactly one document keyed by their UID.
+    // Stripe Cloud Functions update subscription fields via admin SDK (bypasses rules).
+    match /users/{userId} {
+      allow read, update: if isAuth() && uid() == userId;
+      allow create:       if isAuth() && uid() == userId;
+      allow delete:       if false;
+
+      // Monthly AI usage counters
+      match /usage/{monthKey} {
+        allow read, write: if isAuth() && uid() == userId;
+      }
+    }
+
+    // ── Projects ───────────────────────────────────────────────────────────────
+    match /projects/{projectId} {
+      allow read:          if isAuth() && resource.data.userId == uid();
+      allow create:        if isAuth() && request.resource.data.userId == uid();
+      allow update:        if isAuth() && resource.data.userId == uid();
+      allow delete:        if isAuth() && resource.data.userId == uid();
+
+      // Scene rich-text content
+      match /scenes/{sceneId} {
+        allow read, write: if isProjectOwner(projectId);
+      }
+
+      // Characters
+      match /characters/{characterId} {
+        allow read, write: if isProjectOwner(projectId);
+      }
+
+      // Story threads
+      match /threads/{threadId} {
+        allow read, write: if isProjectOwner(projectId);
+      }
+
+      // Lore bible entries
+      match /lore/{entryId} {
+        allow read, write: if isProjectOwner(projectId);
+      }
+
+      // World maps and pins
+      match /maps/{mapId} {
+        allow read, write: if isProjectOwner(projectId);
+      }
+
+      // Daily writing stats (streak tracking)
+      match /writingDays/{dayId} {
+        allow read, write: if isProjectOwner(projectId);
+      }
+
+      // Dev-edit settings (single doc keyed "settings") + scan history
+      match /devEdit/{docId} {
+        allow read, write: if isProjectOwner(projectId);
+      }
+
+      match /devEditScans/{scanId} {
+        allow read, write: if isProjectOwner(projectId);
+      }
+    }
+
+    // ── Series ─────────────────────────────────────────────────────────────────
+    match /series/{seriesId} {
+      allow read:          if isAuth() && resource.data.uid == uid();
+      allow create:        if isAuth() && request.resource.data.uid == uid();
+      allow update, delete: if isAuth() && resource.data.uid == uid();
+
+      // Series-level lore bible
+      match /lore/{entryId} {
+        allow read, write: if isSeriesOwner(seriesId);
+      }
+    }
+
+    // ── User progress / onboarding ─────────────────────────────────────────────
+    // Doc ID is the user's UID.
+    match /userProgress/{userId} {
+      allow read, write: if isAuth() && uid() == userId;
+    }
+
+    // ── AI suggestions ─────────────────────────────────────────────────────────
+    // Users can write and manage only their own suggestions.
+    match /aiSuggestions/{suggestionId} {
+      allow create:        if isAuth() && request.resource.data.uid == uid();
+      allow read, update,
+            delete:        if isAuth() && resource.data.uid == uid();
+    }
+
+    // ── Project activity log ───────────────────────────────────────────────────
+    // Append-only from the client; users read only their own entries.
+    match /projectActivity/{docId} {
+      allow create: if isAuth() && request.resource.data.uid == uid();
+      allow read:   if isAuth() && resource.data.uid == uid();
+      allow update, delete: if false;
+    }
+
+    // ── Feedback collections ───────────────────────────────────────────────────
+    // Any authenticated user can submit. Users can read their own submissions.
+    // No client-side edits or deletes — these are append-only audit trails.
+    match /feedback/{docId} {
+      allow create: if isAuth();
+      allow read:   if isAuth() && resource.data.userId == uid();
+      allow update, delete: if false;
+    }
+
+    match /bugReports/{docId} {
+      allow create: if isAuth();
+      allow read:   if isAuth() && resource.data.userId == uid();
+      allow update, delete: if false;
+    }
+
+    match /featureRequests/{docId} {
+      allow create: if isAuth();
+      allow read:   if isAuth() && resource.data.userId == uid();
+      allow update, delete: if false;
+    }
+
+    match /supportQuestions/{docId} {
+      allow create: if isAuth();
+      allow read:   if isAuth() && resource.data.userId == uid();
+      allow update, delete: if false;
+    }
+
+    // ── Reader sharing ─────────────────────────────────────────────────────────
+    // Authors create and manage shares. Anyone can read an active share (no auth
+    // required so the /read/:shareId page works without login).
+    match /projectShares/{shareId} {
+      allow create: if isAuth() && request.resource.data.authorId == uid();
+      allow update,
+            delete: if isAuth() && resource.data.authorId == uid();
+      // Author can always read their own shares; public can read active shares.
+      allow read:   if (isAuth() && resource.data.authorId == uid())
+                    || resource.data.active == true;
+
+      // Chapter content snapshots — same visibility as the parent share.
+      match /chapters/{chapterId} {
+        allow read:  if get(/databases/$(database)/documents/projectShares/$(shareId)).data.active == true
+                     || (isAuth() && get(/databases/$(database)/documents/projectShares/$(shareId)).data.authorId == uid());
+        allow write: if isAuth() && get(/databases/$(database)/documents/projectShares/$(shareId)).data.authorId == uid();
+      }
+    }
+
+    // ── Deny everything else ───────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

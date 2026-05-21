@@ -27,18 +27,18 @@ export default function ThemeSelector({ open, onClose }) {
 
   return (
     <>
-      {/* Backdrop — click to close */}
+      {/* Backdrop — starts below the 48px header so it stays accessible */}
       {open && (
         <div
-          className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-[2px] animate-fade-in"
+          className="fixed top-12 inset-x-0 bottom-0 z-[200] bg-black/40 backdrop-blur-[2px] animate-fade-in"
           onClick={onClose}
           aria-hidden="true"
         />
       )}
 
-      {/* Drawer panel */}
+      {/* Drawer panel — also starts below the header */}
       <div
-        className="fixed top-0 right-0 bottom-0 z-[201] flex flex-col"
+        className="fixed top-12 right-0 bottom-0 z-[201] flex flex-col"
         style={{
           width:            '320px',
           background:       'rgba(6,8,18,0.97)',

@@ -1,0 +1,59 @@
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /signup
+Disallow: /dashboard
+Disallow: /projects
+Disallow: /settings
+Disallow: /characters
+Disallow: /lore
+Disallow: /threads
+Disallow: /series
+Disallow: /worldmap
+Disallow: /cover-studio
+Disallow: /publishing
+
+# AI crawlers — explicitly allowed to index the public marketing content
+User-agent: GPTBot
+Allow: /
+Allow: /login
+Allow: /signup
+Disallow: /dashboard
+Disallow: /projects
+Disallow: /settings
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /login
+Allow: /signup
+Disallow: /dashboard
+Disallow: /projects
+Disallow: /settings
+
+User-agent: Google-Extended
+Allow: /
+Allow: /login
+Allow: /signup
+Disallow: /dashboard
+Disallow: /projects
+Disallow: /settings
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /login
+Allow: /signup
+Disallow: /dashboard
+Disallow: /projects
+Disallow: /settings
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+Allow: /login
+Allow: /signup
+Disallow: /dashboard
+Disallow: /projects
+
+Sitemap: https://axiomwriter.com/sitemap.xml

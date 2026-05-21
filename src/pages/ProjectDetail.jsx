@@ -3,16 +3,18 @@ import ComposerPanel from '../components/composer/ComposerPanel'
 import PauseDetectionBar from '../components/composer/PauseDetectionBar'
 import { usePauseDetection } from '../hooks/usePauseDetection'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Upload, Download, Focus, Loader2, Users, BookOpen, ExternalLink, Search, GitBranch, ClipboardCheck, Globe, ImageIcon, Rocket, Sun, Moon, Sparkles } from 'lucide-react'
+import { ArrowLeft, Upload, Download, Focus, Loader2, Users, BookOpen, ExternalLink, Search, GitBranch, ClipboardCheck, Globe, ImageIcon, Rocket, Sun, Moon, Sparkles, Share2, X, ChevronDown, FolderOpen } from 'lucide-react'
+import StructureScorePanel from '../components/manuscript/StructureScorePanel'
 import { useTheme } from '../contexts/ThemeContext'
 import { useWritingTheme } from '../contexts/WritingThemeContext'
 import ThemeBackground from '../components/theme/ThemeBackground'
 import ThemeSelector from '../components/theme/ThemeSelector'
-import { useManuscript, findSceneMeta } from '../hooks/useManuscript'
+import { useManuscript, findSceneMeta, getAllChapters } from '../hooks/useManuscript'
 import { useLore } from '../hooks/useLore'
 import { useCharacters, AVATAR_COLORS, ROLE_OPTIONS } from '../hooks/useCharacters'
 import ManuscriptSidebar from '../components/manuscript/ManuscriptSidebar'
 import SceneEditor from '../components/manuscript/SceneEditor'
+import ChapterView from '../components/manuscript/ChapterView'
 import ImportDocxModal from '../components/manuscript/ImportDocxModal'
 import ExportDocxModal from '../components/manuscript/ExportDocxModal'
 import CharacterQuickRef from '../components/characters/CharacterQuickRef'
@@ -31,6 +33,9 @@ import { runThreadAnalysis } from '../lib/threadEngine'
 import AddThreadModal from '../components/threads/AddThreadModal'
 import { useDevEdit } from '../hooks/useDevEdit'
 import DevEditDetailPanel from '../components/devedit/DevEditDetailPanel'
+import ShareModal from '../components/sharing/ShareModal'
+import { useSubscription } from '../hooks/useSubscription'
+import PricingModal from '../components/subscription/PricingModal'
 
 export default function ProjectDetail() {
   const { projectId } = useParams()
@@ -43,6 +48,9 @@ export default function ProjectDetail() {
   const [focusMode,      setFocusMode]      = useState(false)
   const [showImport,     setShowImport]     = useState(false)
   const [showExport,     setShowExport]     = useState(false)
+  const [showShare,      setShowShare]      = useState(false)
+  const [showPricing,    setShowPricing]    = useState(false)
+  const [pricingFeature, setPricingFeature] = useState('')
   const [saveStatus,     setSaveStatus]     = useState('saved')
   const [sidebarOpen,    setSidebarOpen]    = useState(true)
   const [showCharPanel,  setShowCharPanel]  = useState(false)
@@ -57,18 +65,26 @@ export default function ProjectDetail() {
   const [showAddThread,        setShowAddThread]        = useState(false)
   const [threadPrefill,        setThreadPrefill]        = useState(null)
   const threadEngineRunning    = useRef(false)
-  const [devEditFinding, setDevEditFinding] = useState(null)
-  const editorRef = useRef(null)
+  const [devEditFinding,       setDevEditFinding]       = useState(null)
+  const [showStructurePanel,   setShowStructurePanel]   = useState(false)
+  const [structurePanelPos,    setStructurePanelPos]    = useState({ left: 0, top: 52 })
+  const [showFilesDropdown,    setShowFilesDropdown]    = useState(false)
+  const [filesBtnPos,          setFilesBtnPos]          = useState({ left: 0, top: 52 })
+  const editorRef        = useRef(null)
+  const structureBtnRef  = useRef(null)
+  const filesBtnRef      = useRef(null)
   const { markActivity, isPaused } = usePauseDetection()
   const { theme, toggle: toggleTheme } = useTheme()
   const { currentTheme: writingTheme } = useWritingTheme()
   const [showThemeSelector, setShowThemeSelector] = useState(false)
   const { triggerAnalysis, spikeSuggestions, dismissSuggestion } = useMomentumEngine(projectId)
   const { threads, createThread, updateThread, linkScene, unlinkScene } = useThreads(projectId)
+  const { canAccess } = useSubscription()
   const {
     suggestions:       devEditSuggestions,
     isScanning:        devEditScanning,
     healthScore:       devEditHealthScore,
+    lastScanAt:        devEditLastScanAt,
     onSceneSaved:      devEditOnSceneSaved,
     runManualScan:     devEditRunManualScan,
     dismissSuggestion: devEditDismiss,
@@ -204,6 +220,31 @@ export default function ProjectDetail() {
     }
   }, [ms.structure, ms.activeSceneId, ms.activeSceneContent, characters, triggerAnalysis, threads, updateThread, projectId])
 
+  // Close floating panels when clicking outside them
+  useEffect(() => {
+    if (!showStructurePanel && !showFilesDropdown) return
+    function handle() { setShowStructurePanel(false); setShowFilesDropdown(false) }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [showStructurePanel, showFilesDropdown])
+
+  function handleStructureClick() {
+    if (devEditScanning) return
+    if (showStructurePanel) { setShowStructurePanel(false); return }
+    const rect = structureBtnRef.current?.getBoundingClientRect()
+    if (rect) setStructurePanelPos({ left: Math.min(rect.left, window.innerWidth - 340), top: rect.bottom + 6 })
+    setShowFilesDropdown(false)
+    setShowStructurePanel(true)
+  }
+
+  function handleFilesClick() {
+    if (showFilesDropdown) { setShowFilesDropdown(false); return }
+    const rect = filesBtnRef.current?.getBoundingClientRect()
+    if (rect) setFilesBtnPos({ left: Math.min(rect.left, window.innerWidth - 210), top: rect.bottom + 6 })
+    setShowStructurePanel(false)
+    setShowFilesDropdown(true)
+  }
+
   if (ms.loading) return <LoadingSpinner fullscreen />
   if (ms.error)   return (
     <div className="min-h-screen bg-axiom-bg flex items-center justify-center text-red-400">
@@ -250,113 +291,129 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* Scrollable nav — overflow stays inside this child, not the header, so dropdowns aren't clipped */}
-        <div className="flex items-center gap-2 overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden">
+        {/* Scrollable nav */}
+        <div className="flex items-center gap-1 overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden">
           <LayoutSelector activeLayout={activeLayout} onSelect={setActiveLayout} />
-          <div className="w-px h-4 bg-axiom-border mx-1" />
+          <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />
           <SaveIndicator />
-          <div className="w-px h-4 bg-axiom-border mx-1" />
+          <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />
+
+          {/* ── Writing tools ── */}
           <button
             onClick={() => { setShowCharPanel(p => !p); setQuickRefChar(null) }}
-            className={`btn-ghost text-xs flex items-center gap-1.5 ${showCharPanel ? 'text-gold-400' : ''}`}
-            title="Character quick reference"
+            className={`btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0 ${showCharPanel ? 'text-gold-400' : ''}`}
+            title="Characters — view and reference your cast while writing"
           >
             <Users className="w-3.5 h-3.5" />
             Characters
           </button>
           <button
-            onClick={() => navigate(`/projects/${projectId}/threads`)}
-            className="btn-ghost text-xs flex items-center gap-1.5"
-            title="Plot Threads"
+            onClick={() => canAccess('thread_detector')
+              ? navigate(`/projects/${projectId}/threads`)
+              : (setPricingFeature('Thread Detector'), setShowPricing(true))}
+            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
+            title="Threads — track narrative arcs and open plot lines across scenes"
           >
             <GitBranch className="w-3.5 h-3.5" />
             Threads
           </button>
           <button
-            onClick={() => devEditScanning ? null : devEditRunManualScan(ms.structure)}
-            className={`btn-ghost text-xs flex items-center gap-1.5 ${devEditScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title={devEditHealthScore != null ? `Structural health: ${devEditHealthScore}/100` : 'Run structural check'}
+            ref={structureBtnRef}
+            onClick={handleStructureClick}
+            className={`btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0 ${showStructurePanel ? 'text-gold-400' : ''} ${devEditScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Structural Health — click to see your manuscript's pacing, POV, dialogue, and more"
           >
             {devEditScanning
               ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
               : <ClipboardCheck className="w-3.5 h-3.5" />}
             Structure
             {devEditHealthScore != null && (
-              <span className={`text-[10px] font-semibold ${devEditHealthScore >= 85 ? 'text-teal-400' : devEditHealthScore >= 60 ? 'text-gold-400' : 'text-red-400'}`}>
+              <span className={`text-[10px] font-bold ml-0.5 ${devEditHealthScore >= 85 ? 'text-teal-400' : devEditHealthScore >= 60 ? 'text-gold-400' : 'text-red-400'}`}>
                 {devEditHealthScore}
               </span>
             )}
           </button>
+
+          <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />
+
+          {/* ── Project destinations ── */}
           <button
-            onClick={() => navigate(`/projects/${projectId}/map`)}
-            className="btn-ghost text-xs flex items-center gap-1.5"
-            title="World Map"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            Map
-          </button>
-          <button
-            onClick={() => navigate(`/projects/${projectId}/cover`)}
-            className="btn-ghost text-xs flex items-center gap-1.5"
-            title="Cover Studio"
-          >
-            <ImageIcon className="w-3.5 h-3.5" />
-            Cover
-          </button>
-          <button
-            onClick={() => navigate(`/projects/${projectId}/publish`)}
-            className="btn-ghost text-xs flex items-center gap-1.5"
-            title="Export for Publishing"
-          >
-            <Rocket className="w-3.5 h-3.5" />
-            Publish
-          </button>
-          <button
-            onClick={() => navigate(`/projects/${projectId}/lore`)}
-            className="btn-ghost text-xs flex items-center gap-1.5"
-            title="Lore Bible"
+            onClick={() => canAccess('lore_bible')
+              ? navigate(`/projects/${projectId}/lore`)
+              : (setPricingFeature('Lore Bible'), setShowPricing(true))}
+            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
+            title="Lore Bible — world-building database: factions, magic, history, rules"
           >
             <BookOpen className="w-3.5 h-3.5" />
             Lore Bible
           </button>
           <button
-            onClick={() => setShowImport(true)}
-            className="btn-ghost text-xs flex items-center gap-1.5"
-            title="Import .docx"
+            onClick={() => canAccess('map_builder')
+              ? navigate(`/projects/${projectId}/map`)
+              : (setPricingFeature('World Map Builder'), setShowPricing(true))}
+            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
+            title="World Map — build and annotate a visual geography of your world"
           >
-            <Upload className="w-3.5 h-3.5" />
-            Import
+            <Globe className="w-3.5 h-3.5" />
+            Map
           </button>
           <button
-            onClick={() => setShowExport(true)}
-            className="btn-ghost text-xs flex items-center gap-1.5"
-            title="Export to .docx"
+            onClick={() => canAccess('cover_generator')
+              ? navigate(`/projects/${projectId}/cover`)
+              : (setPricingFeature('Cover Studio'), setShowPricing(true))}
+            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
+            title="Cover Studio — generate and design your book cover with AI"
           >
-            <Download className="w-3.5 h-3.5" />
-            Export
+            <ImageIcon className="w-3.5 h-3.5" />
+            Cover
           </button>
+          <button
+            onClick={() => canAccess('publishing_export')
+              ? navigate(`/projects/${projectId}/publish`)
+              : (setPricingFeature('Publishing Export'), setShowPricing(true))}
+            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
+            title="Publish — export your manuscript to EPUB, DOCX, or PDF for distribution"
+          >
+            <Rocket className="w-3.5 h-3.5" />
+            Publish
+          </button>
+
+          <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />
+
+          {/* ── Files dropdown (Import / Export / Share) ── */}
+          <button
+            ref={filesBtnRef}
+            onClick={handleFilesClick}
+            className={`btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0 ${showFilesDropdown ? 'text-gold-400' : ''}`}
+            title="Files — import a .docx, export your manuscript, or share a reader link"
+          >
+            <FolderOpen className="w-3.5 h-3.5" />
+            Files
+            <ChevronDown className={`w-3 h-3 transition-transform duration-150 ${showFilesDropdown ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* ── Utilities ── */}
           <button
             onClick={() => setFocusMode(p => !p)}
-            className={`btn-icon ${focusMode ? 'text-gold-400' : ''}`}
-            title="Focus mode (Esc to exit)"
+            className={`btn-icon flex-shrink-0 ${focusMode ? 'text-gold-400' : ''}`}
+            title="Focus mode — collapse all UI, immerse in writing (press Esc to exit)"
           >
             <Focus className="w-4 h-4" />
           </button>
           <button
             onClick={toggleTheme}
-            className="btn-icon"
-            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            className="btn-icon flex-shrink-0"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark'
               ? <Sun  className="w-4 h-4 text-gold-400" />
               : <Moon className="w-4 h-4 text-gold-500" />
             }
           </button>
-          {/* Writing environment theme selector */}
           <button
             onClick={() => setShowThemeSelector(p => !p)}
-            className="btn-icon"
-            title="Writing environment"
+            className={`btn-icon flex-shrink-0 ${showThemeSelector ? 'text-gold-400' : ''}`}
+            title="Writing Environment — set a mood with ambient visuals that frame your editor"
             style={writingTheme.id !== 'none' ? { color: `rgba(${writingTheme.accentRgb},0.9)` } : {}}
           >
             <Sparkles className="w-4 h-4" />
@@ -410,8 +467,10 @@ export default function ProjectDetail() {
           <ManuscriptSidebar
             structure={ms.structure}
             activeSceneId={ms.activeSceneId}
+            activeChapterId={ms.activeChapterId}
             projectId={projectId}
             onSceneClick={ms.loadScene}
+            onChapterClick={ms.loadChapter}
             onAddChapter={ms.addChapter}
             onAddPart={ms.addPart}
             onAddScene={ms.addScene}
@@ -429,7 +488,14 @@ export default function ProjectDetail() {
 
         {/* Editor area */}
         <div className="flex-1 flex overflow-hidden">
-          {ms.activeSceneId ? (
+          {ms.activeChapterId && !ms.activeSceneId ? (
+            <ChapterView
+              chapter={getAllChapters(ms.structure).find(ch => ch.id === ms.activeChapterId)}
+              sceneContents={ms.chapterSceneContents}
+              loading={ms.chapterLoading}
+              onEditScene={ms.loadScene}
+            />
+          ) : ms.activeSceneId ? (
             <SceneEditor
               ref={editorRef}
               key={ms.activeSceneId}
@@ -468,6 +534,7 @@ export default function ProjectDetail() {
               onToggleSidebar={() => setSidebarOpen(true)}
             />
           )}
+
 
           {/* Composer panel */}
           {showComposer && ms.activeSceneId && (
@@ -585,6 +652,72 @@ export default function ProjectDetail() {
         )}
       </div>
 
+      {/* ── Structure score panel ── */}
+      {showStructurePanel && (
+        <StructureScorePanel
+          style={{ left: structurePanelPos.left, top: structurePanelPos.top }}
+          healthScore={devEditHealthScore}
+          isScanning={devEditScanning}
+          suggestions={devEditSuggestions}
+          lastScanAt={devEditLastScanAt}
+          onRunScan={() => { devEditRunManualScan(ms.structure); setShowStructurePanel(false) }}
+          onClose={() => setShowStructurePanel(false)}
+        />
+      )}
+
+      {/* ── Files dropdown ── */}
+      {showFilesDropdown && (
+        <div
+          className="fixed z-[300] shadow-2xl rounded-xl overflow-hidden"
+          style={{
+            left: filesBtnPos.left,
+            top: filesBtnPos.top,
+            width: '210px',
+            background: 'rgba(8,10,24,0.98)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <button
+            onClick={() => { setShowImport(true); setShowFilesDropdown(false) }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-axiom-surface2 transition-colors"
+          >
+            <Upload className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-slate-300">Import</p>
+              <p className="text-[10px] text-slate-600">Bring in a .docx manuscript</p>
+            </div>
+          </button>
+          <div className="border-t border-axiom-border mx-3" />
+          <button
+            onClick={() => { setShowExport(true); setShowFilesDropdown(false) }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-axiom-surface2 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-slate-300">Export</p>
+              <p className="text-[10px] text-slate-600">Save as .docx file</p>
+            </div>
+          </button>
+          <div className="border-t border-axiom-border mx-3" />
+          <button
+            onClick={() => {
+              canAccess('reader_sharing') ? setShowShare(true) : (setPricingFeature('Reader Sharing'), setShowPricing(true))
+              setShowFilesDropdown(false)
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-axiom-surface2 transition-colors"
+          >
+            <Share2 className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-medium text-slate-300">Share</p>
+              <p className="text-[10px] text-slate-600">Send a reader link</p>
+            </div>
+          </button>
+        </div>
+      )}
+
       {/* Writing environment theme selector drawer */}
       <ThemeSelector
         open={showThemeSelector}
@@ -606,6 +739,21 @@ export default function ProjectDetail() {
           structure={ms.structure}
           projectId={projectId}
           onClose={() => setShowExport(false)}
+        />
+      )}
+
+      {showShare && ms.project && (
+        <ShareModal
+          project={ms.project}
+          structure={ms.structure}
+          onClose={() => setShowShare(false)}
+        />
+      )}
+
+      {showPricing && (
+        <PricingModal
+          onClose={() => setShowPricing(false)}
+          highlightFeature={pricingFeature}
         />
       )}
 

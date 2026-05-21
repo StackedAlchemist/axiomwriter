@@ -10,7 +10,7 @@ export const TIERS = {
     name: 'Free',
     price: 0,
     projectLimit: 1,
-    aiLimit: 500,
+    aiLimit: 0,
     features: [
       'manuscript_editor', 'basic_export', 'character_list',
     ],
@@ -18,9 +18,9 @@ export const TIERS = {
   writer: {
     id: 'writer',
     name: 'Writer',
-    price: 9,
+    price: 9.99,
     projectLimit: Infinity,
-    aiLimit: 5000,
+    aiLimit: 100,
     features: [
       'manuscript_editor', 'basic_export', 'character_list',
       'unlimited_projects', 'all_layouts', 'voice_dna', 'lore_bible',
@@ -30,9 +30,9 @@ export const TIERS = {
   composer: {
     id: 'composer',
     name: 'Composer',
-    price: 19,
+    price: 19.99,
     projectLimit: Infinity,
-    aiLimit: Infinity,
+    aiLimit: 1000,
     features: [
       'manuscript_editor', 'basic_export', 'character_list',
       'unlimited_projects', 'all_layouts', 'voice_dna', 'lore_bible',
@@ -44,9 +44,9 @@ export const TIERS = {
   architect: {
     id: 'architect',
     name: 'Architect',
-    price: 39,
+    price: 39.99,
     projectLimit: Infinity,
-    aiLimit: Infinity,
+    aiLimit: 2000,
     features: [
       'manuscript_editor', 'basic_export', 'character_list',
       'unlimited_projects', 'all_layouts', 'voice_dna', 'lore_bible',
@@ -54,6 +54,7 @@ export const TIERS = {
       'momentum_engine', 'composer_mode', 'map_builder',
       'cover_generator', 'publishing_export', 'unlimited_ai',
       'collaboration', 'tracked_changes', 'beta_reader_portal',
+      'reader_sharing',
     ],
   },
 }
@@ -75,12 +76,19 @@ export const FEATURE_TIER = {
   cover_generator:    'composer',
   publishing_export:  'composer',
   unlimited_ai:       'composer',
-  collaboration:      'architect',
-  tracked_changes:    'architect',
-  beta_reader_portal: 'architect',
+  collaboration:        'architect',
+  realtime_editing:     'architect',
+  tracked_changes:      'architect',
+  beta_reader_portal:   'architect',
+  reader_sharing:       'architect',
 }
 
 const TIER_ORDER = ['free', 'writer', 'composer', 'architect']
+
+const FOUNDER_EMAILS = new Set([
+  'billylw75@gmail.com',
+  'stackedalchemist@gmail.com',
+])
 
 function tierLevel(tierId) {
   return TIER_ORDER.indexOf(tierId ?? 'free')
@@ -104,9 +112,13 @@ export function useSubscription() {
     return unsub
   }, [currentUser])
 
-  const tierId = subscription?.status === 'active'
-    ? (subscription?.tier ?? 'free')
-    : 'free'
+  const isFounder = FOUNDER_EMAILS.has(currentUser?.email?.toLowerCase())
+
+  const tierId = isFounder
+    ? 'architect'
+    : subscription?.status === 'active'
+      ? (subscription?.tier ?? 'free')
+      : 'free'
 
   const tier = TIERS[tierId] ?? TIERS.free
 

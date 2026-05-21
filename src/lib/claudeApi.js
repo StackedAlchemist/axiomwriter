@@ -6,7 +6,7 @@ import { callAnthropic, extractText, DEFAULT_FAST_MODEL, DEFAULT_QUALITY_MODEL }
  * Returns { hasContradiction: false } or { hasContradiction: true, conflicts: [...] }
  */
 export async function checkLoreContradiction(newEntry, existingEntries) {
-  if (!import.meta.env.VITE_ANTHROPIC_API_KEY || !existingEntries.length) return null
+  if (!existingEntries.length) return null
 
   const existingText = existingEntries
     .filter(e => e.id !== newEntry.id)
@@ -54,7 +54,6 @@ If no contradictions: {"hasContradiction": false}`,
  * Returns { draftA, draftB } or null on failure.
  */
 export async function generateSceneDrafts({ intent, lockedLore, flexibleLore, voiceDNA, previousScene, styleNotes }) {
-  if (!import.meta.env.VITE_ANTHROPIC_API_KEY) throw new Error('Anthropic API key is missing. Add VITE_ANTHROPIC_API_KEY to your .env file.')
   if (!intent?.whatMustHappen) return null
 
   const systemParts = [
@@ -104,8 +103,6 @@ Generate exactly 2 drafts, each 400-800 words. Start each with "DRAFT A:" or "DR
  * Returns an array of { title, description, type } objects, or [] on failure.
  */
 export async function detectNewThreads(sceneHtml, existingThreadTitles = []) {
-  if (!import.meta.env.VITE_ANTHROPIC_API_KEY) return []
-
   const text = (sceneHtml || '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
@@ -154,7 +151,7 @@ Format: [{"title":"short title","description":"one sentence","type":"mystery|pro
  * Returns a short message string, or null on failure.
  */
 export async function generateMomentumSuggestion(character, score, previousScore, appearsInCount) {
-  if (!import.meta.env.VITE_ANTHROPIC_API_KEY || !character?.name) return null
+  if (!character?.name) return null
 
   const diff = score - previousScore
   try {
@@ -179,7 +176,7 @@ Write ONE short, warm suggestion (max 20 words) for the writer that they might b
  * Returns array of findings: [{ type, severity, sceneId, chapterId, message, suggestion }]
  */
 export async function analyzeStructuralIssues(chapters, sceneContents, checkTypes, sensitivity) {
-  if (!import.meta.env.VITE_ANTHROPIC_API_KEY || !checkTypes.length) return []
+  if (!checkTypes.length) return []
 
   function strip(html) { return (html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }
   function words(text) { return text.split(/\s+/).filter(Boolean).length }
@@ -251,7 +248,7 @@ Format:
  * Returns the refined text string, or null on failure.
  */
 export async function refineText({ selectedText, instruction, characterName, voiceDNA }) {
-  if (!import.meta.env.VITE_ANTHROPIC_API_KEY || !selectedText?.trim()) return null
+  if (!selectedText?.trim()) return null
 
   const system = voiceDNA
     ? `You are a creative writing assistant. Refine prose per instruction.\n\nVOICE DNA for ${characterName}:\n${voiceDNA}\n\nReturn ONLY the refined text — no labels, no explanation.`

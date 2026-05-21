@@ -47,7 +47,7 @@ export default function GenerateFromLoreModal({ loreEntries, onClose, onCreate }
       if (import.meta.env.VITE_STABILITY_API_KEY) {
         setProgress('Generating AI map background (Stability AI)…')
         backgroundData = await generateStabilityBackground(
-          analysis?.mapDescription || `A ${style} fantasy world map`,
+          analysis?.mapDescription || `A ${style} world map`,
           style
         )
       }

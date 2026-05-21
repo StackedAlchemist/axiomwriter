@@ -87,7 +87,7 @@ export default function Dashboard() {
 
   // Derived stats
   const activeProjects = useMemo(
-    () => projects.filter(p => p.status !== 'archived'),
+    () => projects.filter(p => p.status !== 'archived' && p.status !== 'trashed'),
     [projects]
   )
   const totalWords = useMemo(

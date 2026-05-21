@@ -66,7 +66,7 @@ export default function CreateLoreModal({ onClose, onCreate, existingCategories 
               list="lore-categories"
               value={category}
               onChange={e => setCategory(e.target.value)}
-              placeholder="e.g. Factions, Locations, Magic System…"
+              placeholder="e.g. Locations, Factions, History…"
               className="input-base"
             />
             <datalist id="lore-categories">

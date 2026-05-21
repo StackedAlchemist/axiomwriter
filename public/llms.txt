@@ -1,0 +1,41 @@
+# Axiomwriter
+
+> AI-powered writing intelligence platform for fiction authors. Manage your manuscript, characters, lore bible, and plot threads — all in sync.
+
+Axiomwriter is built for fiction writers managing novels and series. It is not a generic notes app or document editor. The core value proposition is that your world bible and your manuscript stay in sync — AI that understands your specific world, characters, and voice, not just grammar and spelling.
+
+## What Axiomwriter Does
+
+- **Manuscript Editor**: Chapter and scene structure with inline AI writing assistance (Composer Mode)
+- **Character Profiles**: Full character sheets with Voice DNA — speech patterns, vocabulary level, recurring phrases — so AI writes each character in their own voice
+- **Lore Bible**: World-building database with AI consistency checking across entries and scenes
+- **Plot Thread Tracker**: Narrative threads that span chapters, tracked by status (active, resolved, seeded)
+- **World Map Builder**: Visual geography tool for your fictional world
+- **Book Cover Studio**: AI-assisted cover design and generation
+- **Publishing Export**: Export to EPUB, DOCX, PDF formats compatible with KDP and IngramSpark
+- **Series Architecture**: Multi-book continuity tracking and series management
+- **Beta Reader Sharing**: Share drafts with readers for feedback
+
+## Who It's For
+
+Fiction writers at any experience level, any genre. Primary use case: authors managing multiple active projects — novels, series, worldbuilding documents, and character sheets — simultaneously.
+
+## Pricing
+
+- **Free**: 1 project, basic character and lore tracking, no AI assists, no export
+- **Writer ($9/month)**: Unlimited projects, AI writing assistance, standard exports
+- **Composer ($19/month)**: Everything in Writer plus Composer Mode, World Map, Cover Studio
+- **Architect ($39/month)**: Everything in Composer plus series architecture, beta reader sharing, priority support
+
+## Technical Context
+
+- Web application (SPA) available at axiomwriter.com
+- Progressive Web App — installable on iOS, Android, and desktop
+- Built by Stacked Alchemist LLC (stackedalchemist.dev)
+- AI features powered by Claude (Anthropic)
+
+## Links
+
+- Homepage: https://axiomwriter.com
+- Sign up: https://axiomwriter.com/signup
+- Developer / Company: https://stackedalchemist.dev

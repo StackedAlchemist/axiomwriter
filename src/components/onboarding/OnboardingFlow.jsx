@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
 import { Feather, BookOpen, Zap, Users, Rocket, Check, Compass } from 'lucide-react'
@@ -83,13 +83,13 @@ export default function OnboardingFlow({ onComplete }) {
   async function skipToFreeExplore() {
     setSaving(true)
     try {
-      await updateDoc(doc(db, 'users', currentUser.uid), {
+      await setDoc(doc(db, 'users', currentUser.uid), {
         onboardingComplete:   true,
         onboardingSkipped:    true,
         onboardingGenres:     [],
         onboardingExperience: '',
         onboardingAt:         serverTimestamp(),
-      })
+      }, { merge: true })
     } catch { /* non-critical */ }
     onComplete()
   }
@@ -97,13 +97,13 @@ export default function OnboardingFlow({ onComplete }) {
   async function finish() {
     setSaving(true)
     try {
-      await updateDoc(doc(db, 'users', currentUser.uid), {
+      await setDoc(doc(db, 'users', currentUser.uid), {
         onboardingComplete:   true,
         onboardingSkipped:    false,
         onboardingGenres:     genres,
         onboardingExperience: experience,
         onboardingAt:         serverTimestamp(),
-      })
+      }, { merge: true })
     } catch { /* non-critical */ }
     onComplete()
   }

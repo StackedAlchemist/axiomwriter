@@ -4,53 +4,13 @@ import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/f
 import { db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
 import {
-  LayoutDashboard, BookOpen, Feather, Settings, User, LogOut,
-  ChevronLeft, ChevronRight, HelpCircle, PenLine, Map, Users,
-  Compass, Clock, StickyNote, Sparkles, GitBranch, ArrowRight,
-  FolderOpen,
+  LayoutDashboard, BookOpen, Feather, Settings, LogOut,
+  ChevronLeft, ChevronRight, HelpCircle, PenLine, Users,
+  Compass, Clock, StickyNote, Sparkles, GitBranch,
+  FolderOpen, Loader2,
 } from 'lucide-react'
 import Codex from './Codex'
-
-// ── Mock thread data ─────────────────────────────────────────────────────────
-// Replace with real activity state when available
-const MOCK_THREADS = [
-  {
-    id: 'writing',
-    category: 'Writing',
-    title: 'Chapter 6: The Crossing',
-    context: 'You stopped mid-scene',
-    cta: 'Resume writing',
-    accentRgb: '201,168,76',
-    icon: PenLine,
-  },
-  {
-    id: 'world',
-    category: 'World',
-    title: 'Ashen Vale',
-    context: 'Referenced in your last draft',
-    cta: 'Expand world',
-    accentRgb: '45,212,191',
-    icon: Compass,
-  },
-  {
-    id: 'character',
-    category: 'Character',
-    title: 'Elara Voss',
-    context: 'Profile incomplete',
-    cta: 'Continue character',
-    accentRgb: '158,125,212',
-    icon: Users,
-  },
-  {
-    id: 'plot',
-    category: 'Plot',
-    title: 'Act II Turning Point',
-    context: 'Open thread unresolved',
-    cta: 'Continue plotting',
-    accentRgb: '249,115,22',
-    icon: GitBranch,
-  },
-]
+import { usePickUpThread } from '../../hooks/usePickUpThread'
 
 // ── Nav items ────────────────────────────────────────────────────────────────
 // `to` = routable. Missing `to` = needs project context or not implemented.
@@ -70,9 +30,10 @@ const NAV_ITEMS = [
 export default function Sidebar({ collapsed, onToggle, onClose }) {
   const { currentUser, userProfile, logout } = useAuth()
   const navigate  = useNavigate()
-  const [loggingOut,    setLoggingOut]    = useState(false)
-  const [showCodex,     setShowCodex]     = useState(false)
-  const [recentProjects, setRecentProjects] = useState([])
+  const [loggingOut,      setLoggingOut]      = useState(false)
+  const [showCodex,       setShowCodex]       = useState(false)
+  const [recentProjects,  setRecentProjects]  = useState([])
+  const [selectedProjectId, setSelectedProjectId] = useState(null)
 
   // Fetch up to 4 most-recently-updated projects
   useEffect(() => {
@@ -80,27 +41,26 @@ export default function Sidebar({ collapsed, onToggle, onClose }) {
     const q = query(
       collection(db, 'projects'),
       where('userId', '==', currentUser.uid),
-      where('status', 'in', ['active', null]),
       orderBy('updatedAt', 'desc'),
       limit(4),
     )
-    // Firestore 'in' with null won't always work — fall back gracefully
-    const q2 = query(
-      collection(db, 'projects'),
-      where('userId', '==', currentUser.uid),
-      orderBy('updatedAt', 'desc'),
-      limit(4),
-    )
-    const unsub = onSnapshot(q2, snap => {
-      setRecentProjects(
-        snap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(p => !p.status || p.status === 'active')
-          .slice(0, 4)
-      )
+    const unsub = onSnapshot(q, snap => {
+      const list = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(p => p.status !== 'archived' && p.status !== 'trashed')
+        .slice(0, 4)
+      setRecentProjects(list)
+      // Auto-select the most recent project on first load only
+      setSelectedProjectId(prev => prev ?? list[0]?.id ?? null)
     })
     return unsub
   }, [currentUser])
+
+  const selectedProject  = recentProjects.find(p => p.id === selectedProjectId) ?? null
+  const { threads: liveThreads, loading: threadsLoading } = usePickUpThread(
+    selectedProjectId,
+    selectedProject?.structure ?? null,
+  )
 
   async function handleLogout() {
     setLoggingOut(true)
@@ -228,12 +188,76 @@ export default function Sidebar({ collapsed, onToggle, onClose }) {
           <>
             <div className="mx-3 my-2" style={{ height: 1, background: 'var(--axiom-border)' }} />
             <section className="px-3 pb-4">
-              <SectionLabel>Pick up a thread</SectionLabel>
-              <div className="space-y-1.5 mt-2">
-                {MOCK_THREADS.map(thread => (
-                  <ThreadCard key={thread.id} thread={thread} />
-                ))}
+
+              {/* Header + project switcher */}
+              <div className="flex items-center justify-between mb-2">
+                <SectionLabel>Pick up a thread</SectionLabel>
+                {threadsLoading && (
+                  <Loader2 className="w-3 h-3 animate-spin" style={{ color: 'var(--axiom-muted)' }} />
+                )}
               </div>
+
+              {/* Project switcher — only when 2+ projects exist */}
+              {recentProjects.length > 1 && (
+                <div className="flex gap-1 mb-2.5 flex-wrap">
+                  {recentProjects.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedProjectId(p.id)}
+                      className="text-[10px] font-medium px-2 py-0.5 rounded-full transition-all duration-150 truncate max-w-[80px]"
+                      style={p.id === selectedProjectId ? {
+                        background: 'rgba(201,168,76,0.15)',
+                        border: '1px solid rgba(201,168,76,0.35)',
+                        color: 'rgba(201,168,76,1)',
+                      } : {
+                        background: 'var(--axiom-surface2)',
+                        border: '1px solid var(--axiom-border)',
+                        color: 'var(--axiom-muted)',
+                      }}
+                      title={p.title}
+                    >
+                      {p.title?.length > 10 ? p.title.slice(0, 9) + '…' : p.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Thread cards */}
+              {!threadsLoading && liveThreads.length > 0 && (
+                <div className="space-y-1.5">
+                  {liveThreads.map(thread => (
+                    <ThreadCard
+                      key={thread.type}
+                      thread={thread}
+                      onClick={() => { navigate(thread.href, thread.state ? { state: thread.state } : undefined); onClose?.() }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Empty state — no content in selected project yet */}
+              {!threadsLoading && liveThreads.length === 0 && (
+                <div className="space-y-1.5">
+                  {(selectedProjectId ? [
+                    { label: 'Write First Scene',   icon: PenLine,   href: `/projects/${selectedProjectId}`,             accentRgb: '201,168,76'  },
+                    { label: 'Build Your World',    icon: Compass,   href: `/projects/${selectedProjectId}/lore`,        accentRgb: '45,212,191'  },
+                    { label: 'Create a Character',  icon: Users,     href: `/projects/${selectedProjectId}/characters`,  accentRgb: '158,125,212' },
+                    { label: 'Start a Thread',      icon: GitBranch, href: `/projects/${selectedProjectId}/threads`,     accentRgb: '249,115,22'  },
+                  ] : [
+                    { label: 'Start a Project',     icon: BookOpen,  href: '/projects', accentRgb: '201,168,76'  },
+                    { label: 'Build Your World',    icon: Compass,   href: '/projects', accentRgb: '45,212,191'  },
+                    { label: 'Create a Character',  icon: Users,     href: '/projects', accentRgb: '158,125,212' },
+                    { label: 'Begin Writing',       icon: PenLine,   href: '/projects', accentRgb: '249,115,22'  },
+                  ]).map(item => (
+                    <EmptyStateCard
+                      key={item.label}
+                      item={item}
+                      onClick={() => { navigate(item.href); onClose?.() }}
+                    />
+                  ))}
+                </div>
+              )}
+
             </section>
           </>
         )}
@@ -331,11 +355,19 @@ function SectionLabel({ children }) {
   )
 }
 
-function ThreadCard({ thread }) {
-  const Icon = thread.icon
+const THREAD_ICONS = {
+  writing:   PenLine,
+  world:     Compass,
+  character: Users,
+  plot:      GitBranch,
+}
+
+function ThreadCard({ thread, onClick }) {
+  const Icon = THREAD_ICONS[thread.type] ?? PenLine
   return (
     <button
-      className="w-full text-left rounded-lg px-2.5 py-2 transition-all duration-150 group"
+      onClick={onClick}
+      className="w-full text-left rounded-lg px-2.5 py-2 transition-all duration-150"
       style={{
         background: `rgba(${thread.accentRgb},0.04)`,
         border: `1px solid rgba(${thread.accentRgb},0.12)`,
@@ -357,29 +389,56 @@ function ThreadCard({ thread }) {
           <Icon className="w-3 h-3" style={{ color: `rgba(${thread.accentRgb},1)` }} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span
-              className="text-[9px] font-semibold uppercase tracking-widest"
-              style={{ color: `rgba(${thread.accentRgb},0.75)` }}
-            >
-              {thread.category}
-            </span>
-          </div>
-          <p className="text-xs font-medium leading-tight truncate" style={{ color: 'var(--axiom-text)' }}>
+          <span
+            className="text-[9px] font-semibold uppercase tracking-widest"
+            style={{ color: `rgba(${thread.accentRgb},0.75)` }}
+          >
+            {thread.category}
+          </span>
+          <p className="text-xs font-medium leading-tight truncate mt-0.5" style={{ color: 'var(--axiom-text)' }}>
             {thread.title}
           </p>
           <p className="text-[10px] mt-0.5 leading-tight" style={{ color: 'var(--axiom-muted)' }}>
             {thread.context}
           </p>
-          <div className="flex items-center gap-1 mt-1.5">
-            <span
-              className="text-[10px] font-medium"
-              style={{ color: `rgba(${thread.accentRgb},0.9)` }}
-            >
-              → {thread.cta}
-            </span>
-          </div>
+          <p className="text-[10px] font-medium mt-1.5" style={{ color: `rgba(${thread.accentRgb},0.9)` }}>
+            → {thread.cta}
+          </p>
         </div>
+      </div>
+    </button>
+  )
+}
+
+function EmptyStateCard({ item, onClick }) {
+  const Icon = item.icon
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left rounded-lg px-2.5 py-2 transition-all duration-150"
+      style={{
+        background: `rgba(${item.accentRgb},0.03)`,
+        border: `1px solid rgba(${item.accentRgb},0.08)`,
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background = `rgba(${item.accentRgb},0.08)`
+        e.currentTarget.style.borderColor = `rgba(${item.accentRgb},0.2)`
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = `rgba(${item.accentRgb},0.03)`
+        e.currentTarget.style.borderColor = `rgba(${item.accentRgb},0.08)`
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <div
+          className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0"
+          style={{ background: `rgba(${item.accentRgb},0.1)` }}
+        >
+          <Icon className="w-3 h-3" style={{ color: `rgba(${item.accentRgb},0.7)` }} />
+        </div>
+        <p className="text-xs font-medium" style={{ color: 'var(--axiom-muted)' }}>
+          {item.label}
+        </p>
       </div>
     </button>
   )

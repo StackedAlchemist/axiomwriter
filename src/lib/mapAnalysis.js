@@ -14,7 +14,7 @@ import { callAnthropic, extractText, DEFAULT_FAST_MODEL } from '../utils/buildAn
  * Returns { locations, naturalBarriers, factionTerritories, mapDescription }
  */
 export async function analyzeLoreForMap(loreEntries, mapWidth = 1600, mapHeight = 900) {
-  if (!import.meta.env.VITE_ANTHROPIC_API_KEY || !loreEntries.length) return null
+  if (!loreEntries.length) return null
 
   function strip(html) { return (html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }
 
@@ -44,7 +44,7 @@ export async function analyzeLoreForMap(loreEntries, mapWidth = 1600, mapHeight 
       max_tokens: 1200,
       messages: [{
         role: 'user',
-        content: `You are a fantasy cartographer. Analyze this world's lore and generate a map layout.
+        content: `You are a world cartographer. Analyze this world's lore and generate a map layout.
 
 LORE:
 ${loreText}
@@ -340,9 +340,6 @@ function drawModern(ctx, w, h) {
  * Returns a data URL or null.
  */
 export async function generateStabilityBackground(mapDescription, style, width = 1024, height = 576) {
-  const key = import.meta.env.VITE_STABILITY_API_KEY
-  if (!key) return null
-
   const stylePrompts = {
     parchment: 'antique parchment map, aged paper, hand-drawn cartography, sepia tones, fantasy map style, ink illustrations, detailed topography',
     fantasy:   'fantasy world map, painterly illustration, vibrant colors, epic fantasy art, detailed terrain, forests mountains oceans',
@@ -350,25 +347,17 @@ export async function generateStabilityBackground(mapDescription, style, width =
     modern:    'contemporary atlas map, clean minimalist design, pastel colors, modern cartography, geographic survey style',
   }
 
-  const prompt = `${stylePrompts[style] || stylePrompts.parchment}, ${mapDescription}, bird\'s eye view, top-down perspective, no text, no labels`
+  const prompt = `${stylePrompts[style] || stylePrompts.parchment}, ${mapDescription}, bird's eye view, top-down perspective, no text, no labels`
 
   try {
-    const formData = new FormData()
-    formData.append('prompt', prompt)
-    formData.append('output_format', 'png')
-    formData.append('width',  String(width))
-    formData.append('height', String(height))
-    formData.append('cfg_scale', '7')
-    formData.append('samples',   '1')
+    const { getFunctions, httpsCallable } = await import('firebase/functions')
+    const { getAuth } = await import('firebase/auth')
+    const user = getAuth().currentUser
+    if (!user) return null
 
-    const res = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}` },
-      body:    formData,
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const b64  = data.artifacts?.[0]?.base64
+    const fn = httpsCallable(getFunctions(undefined, 'us-central1'), 'generateImage')
+    const result = await fn({ userId: user.uid, prompt, width, height })
+    const b64 = result.data?.base64
     return b64 ? `data:image/png;base64,${b64}` : null
   } catch {
     return null

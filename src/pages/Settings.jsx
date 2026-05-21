@@ -31,7 +31,7 @@ export default function Settings() {
   const [upgraded, setUpgraded] = useState(false)
 
   useEffect(() => {
-    if (window.location.search.includes('upgraded=1')) {
+    if (window.location.search.includes('upgraded=1') || window.location.search.includes('checkout=success')) {
       setUpgraded(true)
       setActive('billing')
       window.history.replaceState({}, '', '/settings')
@@ -279,7 +279,7 @@ function AccountSettings({ currentUser }) {
               placeholder="Current password"
               value={currentPassword}
               onChange={e => setCurrentPassword(e.target.value)}
-              className="w-full input-field"
+              className="w-full input-base"
               required
             />
             <input
@@ -287,7 +287,7 @@ function AccountSettings({ currentUser }) {
               placeholder="New password (min 6 chars)"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
-              className="w-full input-field"
+              className="w-full input-base"
               minLength={6}
               required
             />
@@ -423,14 +423,14 @@ function DangerZone({ currentUser, logout }) {
             placeholder="Your password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            className="w-full input-field"
+            className="w-full input-base"
             required
           />
           <input
             placeholder='Type "DELETE" to confirm'
             value={confirm}
             onChange={e => setConfirm(e.target.value)}
-            className="w-full input-field"
+            className="w-full input-base"
             required
           />
           {error && <p className="text-xs text-red-400">{error}</p>}

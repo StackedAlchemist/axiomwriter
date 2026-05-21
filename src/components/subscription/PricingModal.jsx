@@ -21,13 +21,13 @@ const PLAN_COLORS = {
 const PLAN_FEATURES = {
   free: [
     '1 project',
-    '500 AI assists / month',
+    'No AI assists',
     'Manuscript editor',
     'Basic export',
   ],
   writer: [
     'Unlimited projects',
-    '5,000 AI assists / month',
+    '100 AI assists / month',
     'All editor layouts',
     'Voice DNA analysis',
     'Lore Bible',
@@ -36,7 +36,7 @@ const PLAN_FEATURES = {
   ],
   composer: [
     'Everything in Writer',
-    'Unlimited AI assists',
+    '1,000 AI assists / month',
     'Momentum Engine',
     'Composer Mode (AI co-writing)',
     'World Map Builder',
@@ -45,9 +45,10 @@ const PLAN_FEATURES = {
   ],
   architect: [
     'Everything in Composer',
-    'Real-time collaboration',
-    'Tracked changes',
-    'Beta reader portals',
+    '2,000 AI assists / month',
+    'Real-time editor collaboration',
+    'Live cursor presence',
+    'Beta reader sharing',
     'Priority support',
   ],
 }
@@ -131,7 +132,7 @@ export default function PricingModal({ onClose, highlightFeature }) {
                     <span className="text-2xl font-bold text-slate-300">Free</span>
                   ) : (
                     <span className="text-2xl font-bold text-slate-100">
-                      ${plan.price}
+                      ${Number.isInteger(plan.price) ? plan.price : plan.price.toFixed(2)}
                       <span className="text-sm font-normal text-slate-500">/mo</span>
                     </span>
                   )}

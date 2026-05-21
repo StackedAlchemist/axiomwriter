@@ -30,7 +30,7 @@ export default function ThemePreviewCard({ theme, isActive, onClick }) {
           style={{
             background: theme.image
               ? `url(${theme.image}) center/cover no-repeat`
-              : 'linear-gradient(135deg, #0d0d2b 0%, #141430 100%)',
+              : theme.cssBackground || 'linear-gradient(135deg, #0d0d2b 0%, #141430 100%)',
           }}
         >
           {/* Darkening overlay */}

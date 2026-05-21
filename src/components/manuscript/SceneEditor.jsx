@@ -185,7 +185,7 @@ const SceneEditor = React.forwardRef(function SceneEditor({
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-axiom-bg relative">
+    <div className="flex-1 flex flex-col overflow-hidden bg-axiom-bg relative scene-editor-wrap">
 
       {/* Lore gap popover */}
       {gapPopover && (
