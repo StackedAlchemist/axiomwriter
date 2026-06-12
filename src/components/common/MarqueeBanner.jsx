@@ -50,6 +50,9 @@ export default function MarqueeBanner() {
         WebkitBackdropFilter: 'blur(12px)',
         /* Subtle muted-gold top border */
         borderTop: '1px solid rgba(201, 168, 76, 0.2)',
+        /* Fade words at both edges so they dissolve instead of hard-clipping mid-word */
+        maskImage: 'linear-gradient(to right, transparent, #000 7%, #000 93%, transparent)',
+        WebkitMaskImage: 'linear-gradient(to right, transparent, #000 7%, #000 93%, transparent)',
       }}
       /* Respect reduced-motion preference */
       aria-hidden="true"

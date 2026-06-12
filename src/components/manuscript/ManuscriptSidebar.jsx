@@ -25,6 +25,21 @@ function SortableScene({ scene, isActive, onClick, onDelete, onRename, chapterId
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: scene.id })
   const [editing,  setEditing]  = useState(false)
   const [titleVal, setTitleVal] = useState(scene.title || '')
+  const [confirmDel, setConfirmDel] = useState(false)
+  const confirmTimer = React.useRef(null)
+
+  function handleDeleteClick(e) {
+    e.stopPropagation()
+    if (confirmDel) {
+      clearTimeout(confirmTimer.current)
+      setConfirmDel(false)
+      onDelete(scene.id, chapterId)
+    } else {
+      setConfirmDel(true)
+      clearTimeout(confirmTimer.current)
+      confirmTimer.current = setTimeout(() => setConfirmDel(false), 3000)
+    }
+  }
 
   function commitRename() {
     setEditing(false)
@@ -37,7 +52,7 @@ function SortableScene({ scene, isActive, onClick, onDelete, onRename, chapterId
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
       className={`
-        group flex items-center gap-1.5 pl-8 pr-2 py-1.5 rounded-md cursor-pointer
+        group flex items-center gap-1.5 pl-8 pr-2 py-1.5 min-h-[40px] rounded-md cursor-pointer
         text-xs transition-all duration-150
         ${isActive
           ? 'bg-gold-500/15 text-gold-300'
@@ -88,20 +103,20 @@ function SortableScene({ scene, isActive, onClick, onDelete, onRename, chapterId
       )}
 
       {!editing && (
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 flex-shrink-0">
+        <div className="row-actions opacity-0 group-hover:opacity-100 flex items-center gap-0.5 flex-shrink-0">
           <button
             onClick={e => { e.stopPropagation(); setEditing(true) }}
-            className="p-0.5 text-slate-600 hover:text-gold-400 transition-colors"
+            className="tap-target flex items-center justify-center p-1.5 rounded text-slate-600 hover:text-gold-400 transition-colors"
             title="Rename scene"
           >
-            <Pencil className="w-2.5 h-2.5" />
+            <Pencil className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={e => { e.stopPropagation(); onDelete(scene.id, chapterId) }}
-            className="p-0.5 text-slate-600 hover:text-red-400 transition-colors"
-            title="Delete scene"
+            onClick={handleDeleteClick}
+            className={`tap-target flex items-center justify-center p-1.5 rounded transition-colors ${confirmDel ? 'text-red-400 bg-red-500/15' : 'text-slate-600 hover:text-red-400'}`}
+            title={confirmDel ? 'Tap again to delete' : 'Delete scene'}
           >
-            <Trash2 className="w-2.5 h-2.5" />
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
@@ -115,6 +130,20 @@ function ChapterSection({ chapter, activeSceneId, activeChapterId, onSceneClick,
   const [editing,   setEditing]   = useState(false)
   const [title,     setTitle]     = useState(chapter.title)
   const [activeId,  setActiveId]  = useState(null)
+  const [confirmDel, setConfirmDel] = useState(false)
+  const confirmTimer = React.useRef(null)
+
+  function handleDeleteChapter() {
+    if (confirmDel) {
+      clearTimeout(confirmTimer.current)
+      setConfirmDel(false)
+      onDeleteChapter(chapter.id, partId)
+    } else {
+      setConfirmDel(true)
+      clearTimeout(confirmTimer.current)
+      confirmTimer.current = setTimeout(() => setConfirmDel(false), 3000)
+    }
+  }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -162,15 +191,15 @@ function ChapterSection({ chapter, activeSceneId, activeChapterId, onSceneClick,
           </span>
         )}
 
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 flex-shrink-0">
-          <button onClick={() => setEditing(true)} className="p-0.5 text-slate-600 hover:text-gold-400" title="Rename chapter">
-            <Pencil className="w-2.5 h-2.5" />
+        <div className="row-actions opacity-0 group-hover:opacity-100 flex items-center gap-0.5 flex-shrink-0">
+          <button onClick={() => setEditing(true)} className="tap-target flex items-center justify-center p-1.5 rounded text-slate-600 hover:text-gold-400" title="Rename chapter">
+            <Pencil className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => onAddScene(chapter.id, partId)} className="p-0.5 text-slate-600 hover:text-teal-400" title="Add scene">
-            <Plus className="w-3 h-3" />
+          <button onClick={() => onAddScene(chapter.id, partId)} className="tap-target flex items-center justify-center p-1.5 rounded text-slate-600 hover:text-teal-400" title="Add scene">
+            <Plus className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => onDeleteChapter(chapter.id, partId)} className="p-0.5 text-slate-600 hover:text-red-400" title="Delete chapter">
-            <Trash2 className="w-2.5 h-2.5" />
+          <button onClick={handleDeleteChapter} className={`tap-target flex items-center justify-center p-1.5 rounded transition-colors ${confirmDel ? 'text-red-400 bg-red-500/15' : 'text-slate-600 hover:text-red-400'}`} title={confirmDel ? 'Tap again to delete' : 'Delete chapter'}>
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

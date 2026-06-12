@@ -33,13 +33,28 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
+    /* Guard against accidental horizontal scroll app-wide (P0.3).
+       `clip` does not create a scroll container, so position:sticky and the
+       off-screen mobile drawers keep working. */
+    overflow-x: clip;
   }
 
   body {
     @apply bg-axiom-bg font-sans;
     color: var(--axiom-text);
     min-height: 100vh;
+    overflow-x: clip;
+    max-width: 100vw;
     transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Touch tap-target floor — coarse pointers (phones/tablets) get a 44px
+     minimum hit area on icon/ghost buttons without bloating desktop (P0.4). */
+  @media (pointer: coarse) {
+    .btn-icon { min-width: 44px; min-height: 44px; }
+    .tap-target { min-width: 44px; min-height: 44px; }
+    /* Hover-reveal row actions can't be reached by touch — always show them */
+    .row-actions { opacity: 1 !important; }
   }
 
   /* Custom scrollbar */

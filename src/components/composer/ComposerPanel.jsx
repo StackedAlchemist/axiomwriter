@@ -213,7 +213,9 @@ export default function ComposerPanel({
   const activeDraft = drafts ? (activeTab === 'A' ? drafts.draftA : drafts.draftB) : ''
 
   return (
-    <div className="w-[380px] flex-shrink-0 flex flex-col border-l border-axiom-border bg-axiom-surface overflow-hidden">
+    <div className="flex flex-col border-l border-axiom-border bg-axiom-surface overflow-hidden
+      fixed inset-0 top-12 z-40 w-full
+      md:static md:inset-auto md:top-auto md:z-auto md:w-[380px] md:flex-shrink-0">
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-axiom-border flex-shrink-0">

@@ -3,7 +3,7 @@ import ComposerPanel from '../components/composer/ComposerPanel'
 import PauseDetectionBar from '../components/composer/PauseDetectionBar'
 import { usePauseDetection } from '../hooks/usePauseDetection'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Upload, Download, Focus, Loader2, Users, BookOpen, ExternalLink, Search, GitBranch, ClipboardCheck, Globe, ImageIcon, Rocket, Sun, Moon, Sparkles, Share2, X, ChevronDown, FolderOpen } from 'lucide-react'
+import { ArrowLeft, Upload, Download, Focus, Loader2, Users, BookOpen, ExternalLink, Search, GitBranch, ClipboardCheck, Globe, ImageIcon, Rocket, Sun, Moon, Sparkles, Share2, X, ChevronDown, ChevronRight, FolderOpen, Menu } from 'lucide-react'
 import StructureScorePanel from '../components/manuscript/StructureScorePanel'
 import { useTheme } from '../contexts/ThemeContext'
 import { useWritingTheme } from '../contexts/WritingThemeContext'
@@ -52,7 +52,7 @@ export default function ProjectDetail() {
   const [showPricing,    setShowPricing]    = useState(false)
   const [pricingFeature, setPricingFeature] = useState('')
   const [saveStatus,     setSaveStatus]     = useState('saved')
-  const [sidebarOpen,    setSidebarOpen]    = useState(true)
+  const [sidebarOpen,    setSidebarOpen]    = useState(() => typeof window === 'undefined' ? true : window.innerWidth >= 768)
   const [showCharPanel,  setShowCharPanel]  = useState(false)
   const [quickRefChar,   setQuickRefChar]   = useState(null)
   const [charSearch,     setCharSearch]     = useState('')
@@ -73,6 +73,8 @@ export default function ProjectDetail() {
   const editorRef        = useRef(null)
   const structureBtnRef  = useRef(null)
   const filesBtnRef      = useRef(null)
+  const navScrollRef     = useRef(null)
+  const [navScroll,      setNavScroll]      = useState({ left: false, right: false })
   const { markActivity, isPaused } = usePauseDetection()
   const { theme, toggle: toggleTheme } = useTheme()
   const { currentTheme: writingTheme } = useWritingTheme()
@@ -124,6 +126,17 @@ export default function ProjectDetail() {
     setActiveLayoutState('linear')
     ms.loadScene(sceneId)
     updateDoc(doc(db, 'projects', projectId), { activeLayout: 'linear' }).catch(() => {})
+  }
+
+  // Single-panel rule: selecting from the manuscript drawer dismisses it on mobile
+  const isMobile = () => typeof window !== 'undefined' && window.innerWidth < 768
+  function handleSidebarSceneClick(sceneId) {
+    ms.loadScene(sceneId)
+    if (isMobile()) setSidebarOpen(false)
+  }
+  function handleSidebarChapterClick(chapterId) {
+    ms.loadChapter(chapterId)
+    if (isMobile()) setSidebarOpen(false)
   }
 
   // Active scene meta derived from structure
@@ -220,6 +233,21 @@ export default function ProjectDetail() {
     }
   }, [ms.structure, ms.activeSceneId, ms.activeSceneContent, characters, triggerAnalysis, threads, updateThread, projectId])
 
+  // Header nav scroll affordance — show fade/chevron hints only when over-scrollable (P0.2)
+  const updateNavScroll = useCallback(() => {
+    const el = navScrollRef.current
+    if (!el) return
+    setNavScroll({
+      left:  el.scrollLeft > 4,
+      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+    })
+  }, [])
+  useEffect(() => {
+    updateNavScroll()
+    window.addEventListener('resize', updateNavScroll)
+    return () => window.removeEventListener('resize', updateNavScroll)
+  }, [updateNavScroll])
+
   // Close floating panels when clicking outside them
   useEffect(() => {
     if (!showStructurePanel && !showFilesDropdown) return
@@ -273,7 +301,17 @@ export default function ProjectDetail() {
         transition-opacity duration-400
         ${focusMode ? 'focus-mode-dim' : ''}
       `}>
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
+          {/* Mobile: open manuscript drawer (single-panel rule) */}
+          {activeLayout === 'linear' && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="btn-icon flex-shrink-0 md:hidden"
+              title="Open manuscript"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={() => navigate('/projects')}
             className="btn-icon flex-shrink-0"
@@ -291,8 +329,13 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* Scrollable nav */}
-        <div className="flex items-center gap-1 overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden">
+        {/* Scrollable nav — with fade/chevron affordance when over-scrollable (P0.2) */}
+        <div className="relative flex-1 min-w-0">
+        <div
+          ref={navScrollRef}
+          onScroll={updateNavScroll}
+          className="flex items-center gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+        >
           <LayoutSelector activeLayout={activeLayout} onSelect={setActiveLayout} />
           <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />
           <SaveIndicator />
@@ -419,6 +462,20 @@ export default function ProjectDetail() {
             <Sparkles className="w-4 h-4" />
           </button>
         </div>
+
+          {/* Left fade — appears when scrolled away from start */}
+          <div
+            className={`pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-axiom-surface to-transparent transition-opacity duration-200 ${navScroll.left ? 'opacity-100' : 'opacity-0'}`}
+            aria-hidden="true"
+          />
+          {/* Right fade + chevron hint — appears when more tabs lie off-screen */}
+          <div
+            className={`pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-axiom-surface to-transparent flex items-center justify-end transition-opacity duration-200 ${navScroll.right ? 'opacity-100' : 'opacity-0'}`}
+            aria-hidden="true"
+          >
+            <ChevronRight className="w-4 h-4 text-gold-500/70" />
+          </div>
+        </div>
       </header>
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
@@ -458,19 +515,32 @@ export default function ProjectDetail() {
         style={{ display: activeLayout !== 'linear' ? 'none' : undefined }}
       >
 
-        {/* Manuscript sidebar — hidden on mobile when closed */}
-        <div className={`manuscript-sidebar-wrap transition-all duration-300 flex-shrink-0
+        {/* Mobile drawer backdrop — tap to dismiss (single-panel rule) */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Manuscript sidebar — overlay drawer on mobile, in-flow pane on desktop */}
+        <div className={`manuscript-sidebar-wrap flex-shrink-0
           ${focusMode ? 'focus-mode-dim' : ''}
-          ${sidebarOpen ? 'w-[240px]' : 'w-0'}
-          ${sidebarOpen ? 'block' : 'hidden md:block'}
+          fixed top-12 bottom-0 left-0 z-40 w-[280px] max-w-[85vw]
+          transition-transform duration-300
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          md:static md:top-auto md:bottom-auto md:z-auto md:max-w-none md:w-auto
+          md:translate-x-0 md:transition-[width] md:duration-300
+          ${sidebarOpen ? 'md:w-[240px]' : 'md:w-0'}
         `}>
           <ManuscriptSidebar
             structure={ms.structure}
             activeSceneId={ms.activeSceneId}
             activeChapterId={ms.activeChapterId}
             projectId={projectId}
-            onSceneClick={ms.loadScene}
-            onChapterClick={ms.loadChapter}
+            onSceneClick={handleSidebarSceneClick}
+            onChapterClick={handleSidebarChapterClick}
             onAddChapter={ms.addChapter}
             onAddPart={ms.addPart}
             onAddScene={ms.addScene}
@@ -550,19 +620,37 @@ export default function ProjectDetail() {
           )}
         </div>
 
-        {/* Character quick-reference panel */}
+        {/* Character quick-reference panel — right overlay on mobile, in-flow pane on desktop */}
         {showCharPanel && (
-          <div className={`w-[220px] flex-shrink-0 border-l border-axiom-border flex flex-col relative ${focusMode ? 'focus-mode-dim' : ''}`}>
+          <>
+            <div
+              className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
+              onClick={() => setShowCharPanel(false)}
+              aria-hidden="true"
+            />
+          <div className={`flex flex-col relative bg-axiom-surface border-l border-axiom-border
+            fixed top-12 bottom-0 right-0 z-40 w-[280px] max-w-[85vw]
+            md:static md:top-auto md:bottom-auto md:z-auto md:w-[220px] md:max-w-none md:flex-shrink-0
+            ${focusMode ? 'focus-mode-dim' : ''}`}>
             {/* Panel header */}
             <div className="px-3 py-2.5 border-b border-axiom-border flex items-center justify-between flex-shrink-0">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cast</span>
-              <button
-                onClick={() => navigate(`/projects/${projectId}/characters`)}
-                className="p-1 text-slate-600 hover:text-gold-400 transition-colors"
-                title="Open full character list"
-              >
-                <ExternalLink className="w-3 h-3" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => navigate(`/projects/${projectId}/characters`)}
+                  className="p-1 text-slate-600 hover:text-gold-400 transition-colors"
+                  title="Open full character list"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => setShowCharPanel(false)}
+                  className="p-1 text-slate-600 hover:text-slate-300 transition-colors md:hidden"
+                  title="Close"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             {/* Search */}
@@ -631,6 +719,7 @@ export default function ProjectDetail() {
               </div>
             )}
           </div>
+          </>
         )}
 
         {/* Momentum spike — character sheet slide-in panel */}

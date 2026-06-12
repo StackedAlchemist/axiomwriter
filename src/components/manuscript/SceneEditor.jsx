@@ -257,7 +257,7 @@ const SceneEditor = React.forwardRef(function SceneEditor({
         style={{ display: activeTab === 'write' ? undefined : 'none' }}
       >
         {/* Scene title */}
-        <div className="px-8 pt-8 pb-2 max-w-[740px] mx-auto w-full">
+        <div className="px-4 sm:px-8 pt-8 pb-2 max-w-[740px] mx-auto w-full">
           {editingTitle ? (
             <input
               autoFocus
@@ -283,7 +283,7 @@ const SceneEditor = React.forwardRef(function SceneEditor({
 
         {/* Editor scroll area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
-          <div className={`max-w-[740px] mx-auto px-8 pb-8 tiptap-prose ${typewriter ? 'typewriter-mode' : ''}`}>
+          <div className={`max-w-[740px] mx-auto px-4 sm:px-8 pb-8 tiptap-prose ${typewriter ? 'typewriter-mode' : ''}`}>
             <EditorContent editor={editor} />
           </div>
         </div>

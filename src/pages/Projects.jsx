@@ -205,7 +205,7 @@ export default function Projects() {
                     </div>
                     <button
                       onClick={e => { e.stopPropagation(); handleDeleteSeries(s.id) }}
-                      className="btn-icon w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400 hover:bg-red-900/10"
+                      className="btn-icon row-actions w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400 hover:bg-red-900/10"
                       title="Delete series"
                     >
                       <Trash2 className="w-3 h-3" />
