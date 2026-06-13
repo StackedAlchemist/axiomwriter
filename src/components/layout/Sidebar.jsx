@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import {
   LayoutDashboard, BookOpen, Feather, Settings, LogOut,
   ChevronLeft, ChevronRight, HelpCircle, PenLine, Users,
-  Compass, Clock, StickyNote, Sparkles, GitBranch,
+  Compass, GitBranch,
   FolderOpen, Loader2,
 } from 'lucide-react'
 import Codex from './Codex'
@@ -19,12 +19,8 @@ const NAV_ITEMS = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/projects',  icon: BookOpen,        label: 'Projects'  },
   { icon: PenLine,    label: 'Writing Desk', needsProject: true, projectPath: '' },
-  { icon: GitBranch,  label: 'Plot Board',   soon: true },
   { icon: Users,      label: 'Characters',   needsProject: true, projectPath: '/characters' },
   { icon: Compass,    label: 'World Bible',  needsProject: true, projectPath: '/lore' },
-  { icon: Clock,      label: 'Timeline',     soon: true },
-  { icon: StickyNote, label: 'Notes',        soon: true },
-  { icon: Sparkles,   label: 'AI Studio',    soon: true },
 ]
 
 export default function Sidebar({ collapsed, onToggle, onClose }) {

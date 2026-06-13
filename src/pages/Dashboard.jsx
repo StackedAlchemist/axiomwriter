@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { db } from '../firebase/config'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import {
-  BookOpen, Feather, Sparkles, ArrowRight,
+  BookOpen, Feather, ArrowRight,
   TrendingUp, Clock, Star, Zap, GitBranch, AlertTriangle, Loader2,
 } from 'lucide-react'
 
@@ -164,7 +164,7 @@ export default function Dashboard() {
       {/* Quick actions */}
       <div>
         <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-widest mb-3">Quick Actions</h3>
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 gap-4">
 
           {/* New Project — always active */}
           <Link
@@ -210,18 +210,6 @@ export default function Dashboard() {
               <p className="text-xs text-slate-600 leading-relaxed">Jump back into your latest chapter</p>
             </div>
           )}
-
-          {/* AI Studio — coming soon */}
-          <div className="card p-5 opacity-50 cursor-not-allowed relative overflow-hidden">
-            <span className="absolute top-3 right-3 text-[10px] font-semibold bg-axiom-border text-slate-600 px-2 py-0.5 rounded-full">
-              Coming Soon
-            </span>
-            <div className="w-10 h-10 rounded-xl mb-3 flex items-center justify-center bg-teal-500/10 border border-teal-500/20">
-              <Sparkles className="w-5 h-5 text-teal-400" />
-            </div>
-            <h4 className="font-medium text-slate-300 text-sm mb-1">AI Studio</h4>
-            <p className="text-xs text-slate-600 leading-relaxed">Brainstorm, outline, and collaborate</p>
-          </div>
 
         </div>
       </div>
