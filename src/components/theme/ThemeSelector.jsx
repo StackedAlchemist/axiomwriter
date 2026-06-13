@@ -36,11 +36,11 @@ export default function ThemeSelector({ open, onClose }) {
         />
       )}
 
-      {/* Drawer panel — also starts below the header */}
+      {/* Sheet — full-screen on mobile, right drawer on larger screens.
+          Starts below the 48px app header so the navbar is never covered. */}
       <div
-        className="fixed top-12 right-0 bottom-0 z-[201] flex flex-col"
+        className="fixed top-12 right-0 bottom-0 z-[201] flex flex-col w-full sm:w-[320px]"
         style={{
-          width:            '320px',
           background:       'rgba(6,8,18,0.97)',
           backdropFilter:   'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
@@ -96,7 +96,7 @@ export default function ThemeSelector({ open, onClose }) {
               Active environment
             </p>
             <p className="text-xs text-slate-300 font-medium">{currentTheme.name}</p>
-            <p className="text-[10px] text-slate-600 mt-0.5 italic">{currentTheme.description}</p>
+            {/* Description lives on the cards below — single source of truth, no repeat here */}
           </div>
         )}
 
@@ -124,7 +124,7 @@ export default function ThemeSelector({ open, onClose }) {
           style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
         >
           <p className="text-[10px] text-slate-700 leading-relaxed">
-            Themes appear on the left and right edges of the editor, keeping your writing area clean and focused.
+            Your environment fills the canvas behind a translucent writing page — atmosphere all around you while you write.
           </p>
         </div>
       </div>

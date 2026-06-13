@@ -72,6 +72,13 @@ export default function Sidebar({ collapsed, onToggle, onClose }) {
 
   const displayName = userProfile?.displayName || currentUser?.displayName || 'Writer'
   const email       = currentUser?.email || ''
+  // Mask the address so the nav drawer doesn't expose the full account email
+  const maskedEmail = (() => {
+    if (!email.includes('@')) return ''
+    const [local, domain] = email.split('@')
+    const head = local.slice(0, Math.min(2, local.length))
+    return `${head}${'•'.repeat(Math.max(3, local.length - head.length))}@${domain}`
+  })()
   const initials    = displayName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
   const recentProjectId = recentProjects[0]?.id ?? null
 
@@ -312,7 +319,7 @@ export default function Sidebar({ collapsed, onToggle, onClose }) {
             {!collapsed && (
               <div className="overflow-hidden flex-1 min-w-0">
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--axiom-text)' }}>{displayName}</p>
-                <p className="text-[11px] truncate" style={{ color: 'var(--axiom-muted)' }}>{email}</p>
+                <p className="text-[11px] truncate" style={{ color: 'var(--axiom-muted)' }}>{maskedEmail}</p>
               </div>
             )}
           </NavLink>

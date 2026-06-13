@@ -135,8 +135,8 @@ export default function LoreBible() {
     <div className="min-h-screen bg-axiom-bg flex flex-col">
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
-      <header className="flex items-center justify-between h-12 px-4 bg-axiom-surface border-b border-axiom-border flex-shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
+      <header className="flex items-center justify-between h-12 px-2 sm:px-4 gap-2 bg-axiom-surface border-b border-axiom-border flex-shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
           <button
             onClick={() => navigate(`/projects/${projectId}`)}
             className="btn-icon flex-shrink-0"
@@ -144,14 +144,14 @@ export default function LoreBible() {
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <BookOpen className="w-4 h-4 text-gold-500" />
-            <span className="font-serif font-semibold text-slate-100 text-sm">Lore Bible</span>
+            <span className="font-serif font-semibold text-slate-100 text-sm hidden sm:inline">Lore Bible</span>
           </div>
 
           {/* Tab switcher */}
           <div
-            className="ml-3 flex gap-0.5 p-0.5 rounded-lg"
+            className="ml-0.5 sm:ml-3 flex gap-0.5 p-0.5 rounded-lg flex-shrink-0"
             style={{ background: 'rgba(255,255,255,0.05)' }}
           >
             {[
@@ -185,7 +185,7 @@ export default function LoreBible() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {activeTab === 'lore' && (
             <>
               <button
@@ -193,12 +193,12 @@ export default function LoreBible() {
                 className={`btn-ghost text-xs flex items-center gap-1.5 ${showGapsPanel ? 'text-gold-400' : ''}`}
                 title="Potential lore gaps from manuscript"
               >
-                <GitBranch className="w-3.5 h-3.5" />
-                Lore Gaps
+                <GitBranch className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="hidden sm:inline">Lore Gaps</span>
               </button>
-              <button onClick={openCreate} className="btn-primary text-xs py-1.5 px-3">
-                <Plus className="w-3.5 h-3.5" />
-                New Entry
+              <button onClick={openCreate} className="btn-primary text-xs py-1.5 px-2.5 sm:px-3">
+                <Plus className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="hidden sm:inline">New Entry</span>
               </button>
             </>
           )}

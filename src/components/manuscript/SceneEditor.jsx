@@ -223,13 +223,35 @@ const SceneEditor = React.forwardRef(function SceneEditor({
         </div>
       )}
 
-      {/* Toolbar — only in Write tab */}
+      {/* Focus mode — minimal always-visible pill: word count + single exit.
+          Replaces the hover-reveal status bar so focus mode is usable on touch. */}
+      {focusMode && (
+        <div
+          className="fixed right-3 z-[120] flex items-center gap-3 px-3 py-1.5 rounded-full bg-axiom-surface/85 backdrop-blur-md border border-axiom-border shadow-card"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
+        >
+          <span className="text-[11px] text-slate-400">
+            <span className="text-slate-200 font-medium">{localWords.toLocaleString()}</span> words
+          </span>
+          <button
+            onClick={onFocusExit}
+            className="tap-target flex items-center gap-1 text-[11px] text-slate-400 hover:text-gold-400 transition-colors"
+            title="Exit focus mode (Esc)"
+          >
+            <X className="w-3.5 h-3.5" /> Exit
+          </button>
+        </div>
+      )}
+
+      {/* Toolbar — only in Write tab; hidden in focus mode */}
       {activeTab === 'write' && (
-        <EditorToolbar
-          editor={editor}
-          onToggleComposer={onToggleComposer}
-          composerActive={composerActive}
-        />
+        <div className={focusMode ? 'focus-mode-dim' : ''}>
+          <EditorToolbar
+            editor={editor}
+            onToggleComposer={onToggleComposer}
+            composerActive={composerActive}
+          />
+        </div>
       )}
 
       {/* Tab bar */}
