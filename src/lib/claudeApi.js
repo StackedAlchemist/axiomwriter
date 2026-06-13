@@ -99,6 +99,61 @@ Generate exactly 2 drafts, each 400-800 words. Start each with "DRAFT A:" or "DR
 }
 
 /**
+ * Classifies candidate tokens extracted from a manuscript into entity types.
+ * Turns the naive capitalized-word grabber into real entity recognition:
+ * only true people become character chips; places/things route to the Lore Bible.
+ *
+ * @param {Array<{name:string, sample?:string}>} candidates  pre-filtered tokens
+ * @returns {Promise<{persons:string[], locations:string[], objects:string[]}|null>}
+ *          null on failure (caller should fall back to showing raw candidates)
+ */
+export async function classifyManuscriptEntities(candidates) {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null
+
+  const list = candidates
+    .slice(0, 60)
+    .map((c, i) => `${i + 1}. "${c.name}"${c.sample ? ` — context: "${c.sample}"` : ''}`)
+    .join('\n')
+
+  try {
+    const data = await callAnthropic({
+      model:      DEFAULT_QUALITY_MODEL,
+      max_tokens: 1500,
+      system:     'You are an entity recognizer for a fiction manuscript. You only classify the tokens you are given — never invent new ones.',
+      messages: [{
+        role: 'user',
+        content: `Each item below is a capitalized token pulled from a novel, with an example sentence for context. Classify EACH token as exactly one of:
+- "person": a named character — an individual being with a name
+- "location": a place, region, ship, building, planet, station, or world
+- "object": a named item, technology, vehicle, weapon, or artifact
+- "not-a-name": a common word, verb, adjective, title/honorific, acronym, or anything that is not a proper entity
+
+TOKENS:
+${list}
+
+Respond ONLY with valid JSON (no markdown fences): {"results":[{"name":"<exact token text>","type":"person|location|object|not-a-name"}]}. Use the token text verbatim and include every token exactly once.`,
+      }],
+    })
+
+    const raw = extractText(data).replace(/^```(?:json)?\s*|\s*```$/g, '').trim()
+    const parsed = JSON.parse(raw)
+    const results = Array.isArray(parsed?.results) ? parsed.results : []
+
+    const buckets = { persons: [], locations: [], objects: [] }
+    for (const r of results) {
+      if (!r?.name) continue
+      if (r.type === 'person')        buckets.persons.push(r.name)
+      else if (r.type === 'location') buckets.locations.push(r.name)
+      else if (r.type === 'object')   buckets.objects.push(r.name)
+    }
+    return buckets
+  } catch (err) {
+    console.warn('[classifyManuscriptEntities]', err?.message)
+    return null
+  }
+}
+
+/**
  * Scans a scene for potential new plot threads (mysteries, promises, conflicts, etc.).
  * Returns an array of { title, description, type } objects, or [] on failure.
  */

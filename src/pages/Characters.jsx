@@ -2,70 +2,113 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Users, Search, LayoutGrid, List,
-  FileText, Loader2, X, Check, Zap,
+  FileText, Loader2, X, Check, Zap, Sparkles, MapPin, Package,
 } from 'lucide-react'
 import { getDoc, doc, getDocs, collection } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { getAllChapters } from '../hooks/useManuscript'
 import { useCharacters, IMPORTANCE_LEVELS, ROLE_OPTIONS } from '../hooks/useCharacters'
+import { useLore } from '../hooks/useLore'
+import { classifyManuscriptEntities } from '../lib/claudeApi'
 import CharacterCard from '../components/characters/CharacterCard'
 import CreateCharacterModal from '../components/characters/CreateCharacterModal'
 import MomentumDashboard from '../components/characters/MomentumDashboard'
 import MomentumHistoryGraph from '../components/characters/MomentumHistoryGraph'
 
 // ── Name extraction helpers ───────────────────────────────────────────────────
+// Layer 2 stoplist — common capitalized non-names (sentence-start words, aux verbs,
+// conjunctions, prepositions, honorifics, number words). Acronyms and contractions
+// are handled structurally below; the AI pass catches the rest.
 const COMMON_WORDS = new Set([
   'The','A','An','He','She','It','They','We','I','You','His','Her','Its','Their',
   'My','Our','Your','This','That','These','Those','Then','There','When','Where',
-  'What','Who','How','Why','But','And','Or','So','Yet','For','Nor','At','By',
-  'In','On','Up','As','To','Of','If','Do','Be','Was','Is','Are','Has','Had',
-  'Did','Can','May','Will','Just','Not','All','No','Into','With','From',
+  'What','Who','Whom','Whose','How','Why','Which','But','And','Or','So','Yet','For','Nor',
+  'At','By','In','On','Up','As','To','Of','If','Do','Does','Done','Be','Been','Being',
+  'Was','Were','Is','Am','Are','Has','Have','Had','Did','Can','Could','May','Might','Must',
+  'Will','Would','Shall','Should','Just','Not','All','No','Yes','Into','With','Without',
+  'From','Out','Off','Over','Under','Again','Once','Here','Now','Never','Always','Maybe',
+  'Even','Still','Only','Also','Too','Very','Much','More','Most','Some','Any','Each','Every',
+  'Both','Either','Neither','Other','Another','Such','Than','Because','Though','Although',
+  'While','Before','After','Until','Since','About','Around','Through','Between','Against',
+  'Oh','Okay','Ok','Well','Yeah','Hey','Like','Got','Get','Go','Come','Came','Said','Says',
+  'One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten',
+  'Mr','Mrs','Ms','Dr','Sir','Lady','Lord','Captain','Sergeant',
 ])
 
+// Strip possessive endings: Frame's → Frame, Chris' → Chris
+function stripPossessive(w) {
+  return w.replace(/['’]s$/i, '').replace(/['’]$/, '')
+}
+
+/**
+ * Layers 1 + 2 of entity extraction: pull capitalized tokens, normalize possessives
+ * and plurals to a single root, and filter out contractions / acronyms / stopwords.
+ * Returns [{ name, count, sample }] sorted by frequency. The AI pass (Layer 3) runs
+ * on this output to decide which are real people vs places/things.
+ */
 function extractCandidateNames(htmlContent) {
-  // Strip HTML tags
-  const text = htmlContent.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ')
-  // Find capitalized words not at sentence start
-  const sentences = text.split(/[.!?]+/)
-  const nameCounts = {}
+  const text = htmlContent.replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ')
+  const sentences = text.split(/(?<=[.!?])\s+/)
+  const counts = {} // root → { count, sample }
 
   sentences.forEach(sentence => {
     const trimmed = sentence.trim()
     if (!trimmed) return
     const words = trimmed.split(/\s+/)
-    // Skip the very first word of the sentence (likely start-of-sentence cap)
+    // Skip the first word (start-of-sentence capitalization is not a signal)
     words.slice(1).forEach(word => {
-      const clean = word.replace(/[^a-zA-Z'-]/g, '')
-      if (
-        clean.length >= 2 &&
-        /^[A-Z]/.test(clean) &&
-        !COMMON_WORDS.has(clean)
-      ) {
-        nameCounts[clean] = (nameCounts[clean] || 0) + 1
-      }
+      let clean = word.replace(/[^A-Za-z'’-]/g, '')
+      if (clean.length < 2) return
+      if (!/^[A-Z]/.test(clean)) return
+      // Drop ALL-CAPS acronyms (HUD, POV, AI)
+      if (/^[A-Z][A-Z]+$/.test(clean)) return
+      clean = stripPossessive(clean)
+      if (clean.length < 2) return
+      // Drop contractions: a remaining apostrophe followed by a lowercase letter
+      // (I'm, we're, don't) — keeps apostrophe names like O'Brien (uppercase after ').
+      if (/['’][a-z]/.test(clean)) return
+      if (COMMON_WORDS.has(clean)) return
+      if (!counts[clean]) counts[clean] = { count: 0, sample: trimmed.slice(0, 160) }
+      counts[clean].count += 1
     })
   })
 
-  // Return names appearing 2+ times, sorted by frequency
-  return Object.entries(nameCounts)
-    .filter(([, count]) => count >= 2)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 30)
-    .map(([name]) => name)
+  // Layer 1 plural merge: collapse "Frames" into "Frame" when the singular also
+  // appears. Conservative — only single trailing 's' (not 'ss'), and only when the
+  // singular is already a candidate, so names like "Chris"/"James" are untouched.
+  Object.keys(counts).forEach(key => {
+    if (/[^s]s$/.test(key)) {
+      const singular = key.slice(0, -1)
+      if (counts[singular]) {
+        counts[singular].count += counts[key].count
+        delete counts[key]
+      }
+    }
+  })
+
+  return Object.entries(counts)
+    .filter(([, v]) => v.count >= 2)
+    .sort(([, a], [, b]) => b.count - a.count)
+    .slice(0, 40)
+    .map(([name, v]) => ({ name, count: v.count, sample: v.sample }))
 }
 
 // ── Import from Manuscript Modal ──────────────────────────────────────────────
-function ImportFromManuscriptModal({ projectId, existingNames, onClose, onCreate }) {
-  const [step,      setStep]      = useState('scanning') // scanning | select
-  const [candidates, setCandidates] = useState([])
-  const [selected,   setSelected]   = useState(new Set())
-  const [creating,   setCreating]   = useState(false)
+function ImportFromManuscriptModal({ projectId, existingNames, existingLoreTitles, onClose, onCreate, onCreateLore }) {
+  const [step,     setStep]     = useState('scanning')  // scanning | classifying | select
+  const [persons,  setPersons]  = useState([])          // [{ name, count }]
+  const [loreItems,setLoreItems]= useState([])          // [{ name, type }]  type: location | object
+  const [aiUsed,   setAiUsed]   = useState(false)
+  const [selChars, setSelChars] = useState(new Set())
+  const [selLore,  setSelLore]  = useState(new Set())
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     async function scan() {
       try {
         const projectSnap = await getDoc(doc(db, 'projects', projectId))
-        if (!projectSnap.exists()) { setStep('select'); return }
+        if (!projectSnap.exists()) { if (!cancelled) setStep('select'); return }
 
         const structure = projectSnap.data().structure
         const chapters  = getAllChapters(structure)
@@ -76,114 +119,206 @@ function ImportFromManuscriptModal({ projectId, existingNames, onClose, onCreate
         const snaps  = await Promise.all(
           toLoad.map(id => getDoc(doc(db, 'projects', projectId, 'scenes', id)))
         )
+        const allHtml = snaps.filter(s => s.exists()).map(s => s.data().content ?? '').join(' ')
 
-        const allHtml = snaps
-          .filter(s => s.exists())
-          .map(s => s.data().content ?? '')
-          .join(' ')
+        // Layers 1+2 — normalize + stoplist
+        const existing  = new Set(existingNames.map(n => n.toLowerCase()))
+        const survivors = extractCandidateNames(allHtml).filter(c => !existing.has(c.name.toLowerCase()))
+        if (cancelled) return
 
-        const names   = extractCandidateNames(allHtml)
-        const existing = new Set(existingNames.map(n => n.toLowerCase()))
-        const filtered = names.filter(n => !existing.has(n.toLowerCase()))
+        if (survivors.length === 0) {
+          setPersons([]); setLoreItems([]); setStep('select'); return
+        }
 
-        setCandidates(filtered)
+        // Layer 3 — AI classification
+        setStep('classifying')
+        const byName  = new Map(survivors.map(c => [c.name, c]))
+        const loreSet = new Set((existingLoreTitles || []).map(t => t.toLowerCase()))
+        const buckets = await classifyManuscriptEntities(survivors)
+        if (cancelled) return
+
+        if (buckets) {
+          const ppl = buckets.persons
+            .filter(n => byName.has(n))
+            .map(n => ({ name: n, count: byName.get(n).count }))
+            .sort((a, b) => b.count - a.count)
+          const lore = [
+            ...buckets.locations.map(n => ({ name: n, type: 'location' })),
+            ...buckets.objects.map(n => ({ name: n, type: 'object' })),
+          ].filter(x => byName.has(x.name) && !loreSet.has(x.name.toLowerCase()))
+          setPersons(ppl)
+          setLoreItems(lore)
+          setAiUsed(true)
+        } else {
+          // Graceful fallback — show the locally filtered survivors as people
+          setPersons(survivors.map(c => ({ name: c.name, count: c.count })))
+          setLoreItems([])
+          setAiUsed(false)
+        }
         setStep('select')
       } catch (err) {
         console.error('[ImportFromManuscript]', err)
-        setStep('select')
+        if (!cancelled) setStep('select')
       }
     }
     scan()
-  }, [projectId, existingNames])
+    return () => { cancelled = true }
+  }, [projectId, existingNames, existingLoreTitles])
 
-  function toggle(name) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.has(name) ? next.delete(name) : next.add(name)
-      return next
-    })
-  }
+  const toggle = (set, setter) => (name) => setter(prev => {
+    const next = new Set(prev)
+    next.has(name) ? next.delete(name) : next.add(name)
+    return next
+  })
+  const toggleChar = toggle(selChars, setSelChars)
+  const toggleLore = toggle(selLore, setSelLore)
 
   async function handleCreate() {
-    if (selected.size === 0) return
+    if (selChars.size === 0 && selLore.size === 0) return
     setCreating(true)
-    for (const name of selected) {
-      await onCreate({ name, role: 'supporting', importance: 1 })
+    try {
+      for (const name of selChars) {
+        await onCreate({ name, role: 'supporting', importance: 1 })
+      }
+      for (const name of selLore) {
+        const item = loreItems.find(l => l.name === name)
+        await onCreateLore?.({
+          title:    name,
+          category: item?.type === 'location' ? 'Location' : 'Item',
+          content:  '<p>Auto-detected from the manuscript. Add details.</p>',
+        })
+      }
+      onClose()
+    } catch (err) {
+      console.error('[ImportFromManuscript] create failed', err)
+      setCreating(false)
     }
-    onClose()
   }
+
+  const totalSel = selChars.size + selLore.size
+  const empty = step === 'select' && persons.length === 0 && loreItems.length === 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-axiom-surface border border-axiom-border rounded-2xl shadow-card w-full max-w-lg animate-slide-up">
+      <div className="bg-axiom-surface border border-axiom-border rounded-2xl shadow-card w-full max-w-lg animate-slide-up max-h-[90vh] flex flex-col">
 
-        <div className="flex items-center justify-between p-6 border-b border-axiom-border">
+        <div className="flex items-center justify-between p-6 border-b border-axiom-border flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
               <FileText className="w-4 h-4 text-teal-400" />
             </div>
             <div>
               <h2 className="font-serif text-lg font-semibold text-slate-100">Import from Manuscript</h2>
-              <p className="text-xs text-slate-500">Scan scenes for character names</p>
+              <p className="text-xs text-slate-500">AI finds characters, places, and things in your prose</p>
             </div>
           </div>
-          <button onClick={onClose} className="btn-icon"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="btn-icon tap-target"><X className="w-4 h-4" /></button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto">
           {step === 'scanning' ? (
             <div className="flex flex-col items-center py-8 gap-3">
               <Loader2 className="w-6 h-6 text-gold-400 animate-spin" />
-              <p className="text-sm text-slate-400">Scanning manuscript for names…</p>
+              <p className="text-sm text-slate-400">Scanning manuscript…</p>
             </div>
-          ) : candidates.length === 0 ? (
+          ) : step === 'classifying' ? (
+            <div className="flex flex-col items-center py-8 gap-3">
+              <Sparkles className="w-6 h-6 text-gold-400 animate-pulse" />
+              <p className="text-sm text-slate-400">Identifying who's a person vs a place or thing…</p>
+            </div>
+          ) : empty ? (
             <div className="text-center py-8">
-              <p className="text-slate-400 text-sm mb-1">No new names detected</p>
+              <p className="text-slate-400 text-sm mb-1">No new entities detected</p>
               <p className="text-slate-600 text-xs">
-                All detected names already exist as characters, or no scenes have been written yet.
+                Everything found already exists, or no scenes have been written yet.
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <p className="text-xs text-slate-500 leading-relaxed">
-                These names appear in your manuscript and aren't yet in your character list.
-                Select the ones you want to add.
-              </p>
-              <div className="flex flex-wrap gap-2 max-h-56 overflow-y-auto">
-                {candidates.map(name => {
-                  const isSelected = selected.has(name)
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => toggle(name)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-all ${
-                        isSelected
-                          ? 'bg-teal-500/15 border-teal-500/30 text-teal-300'
-                          : 'bg-axiom-surface2 border-axiom-border text-slate-400 hover:border-axiom-border-light hover:text-slate-200'
-                      }`}
-                    >
-                      {isSelected && <Check className="w-3 h-3" />}
-                      {name}
-                    </button>
-                  )
-                })}
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-                <button
-                  onClick={handleCreate}
-                  disabled={selected.size === 0 || creating}
-                  className="btn-primary flex-1"
-                >
-                  {creating
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</>
-                    : `Add ${selected.size > 0 ? selected.size : ''} Character${selected.size !== 1 ? 's' : ''}`
-                  }
-                </button>
-              </div>
+            <div className="space-y-5">
+              {!aiUsed && (
+                <p className="text-[11px] text-gold-500/80 bg-gold-500/5 border border-gold-500/15 rounded-lg px-3 py-2">
+                  AI classification was unavailable — showing raw name candidates. Review carefully before adding.
+                </p>
+              )}
+
+              {/* Characters */}
+              {persons.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-3.5 h-3.5 text-teal-400" />
+                    <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Characters</span>
+                    <span className="text-[10px] text-slate-600">→ Cast</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {persons.map(({ name, count }) => {
+                      const on = selChars.has(name)
+                      return (
+                        <button
+                          key={name}
+                          onClick={() => toggleChar(name)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-all ${
+                            on ? 'bg-teal-500/15 border-teal-500/30 text-teal-300'
+                               : 'bg-axiom-surface2 border-axiom-border text-slate-400 hover:border-axiom-border-light hover:text-slate-200'
+                          }`}
+                        >
+                          {on && <Check className="w-3 h-3" />}
+                          {name}
+                          <span className="text-[10px] text-slate-600">{count}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Places & things → Lore Bible */}
+              {loreItems.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin className="w-3.5 h-3.5 text-gold-400" />
+                    <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Places &amp; Things</span>
+                    <span className="text-[10px] text-slate-600">→ Lore Bible</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {loreItems.map(({ name, type }) => {
+                      const on = selLore.has(name)
+                      const Icon = type === 'location' ? MapPin : Package
+                      return (
+                        <button
+                          key={name}
+                          onClick={() => toggleLore(name)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-all ${
+                            on ? 'bg-gold-500/15 border-gold-500/30 text-gold-300'
+                               : 'bg-axiom-surface2 border-axiom-border text-slate-400 hover:border-axiom-border-light hover:text-slate-200'
+                          }`}
+                        >
+                          {on ? <Check className="w-3 h-3" /> : <Icon className="w-3 h-3 opacity-60" />}
+                          {name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
+
+        {step === 'select' && !empty && (
+          <div className="flex gap-3 p-6 pt-4 border-t border-axiom-border flex-shrink-0">
+            <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+            <button
+              onClick={handleCreate}
+              disabled={totalSel === 0 || creating}
+              className="btn-primary flex-1"
+            >
+              {creating
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Adding…</>
+                : `Add ${totalSel > 0 ? totalSel : ''} ${totalSel === 1 ? 'item' : 'items'}`
+              }
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -227,6 +362,7 @@ export default function Characters() {
   const { projectId } = useParams()
   const navigate      = useNavigate()
   const { characters, loading, createCharacter, deleteCharacter } = useCharacters(projectId)
+  const { entries: loreEntries, createEntry: createLoreEntry } = useLore(projectId)
 
   const [search,         setSearch]         = useState('')
   const [roleFilter,     setRoleFilter]     = useState('all')
@@ -255,7 +391,8 @@ export default function Characters() {
     await createCharacter(data)
   }
 
-  const existingNames = characters.map(c => c.name).filter(Boolean)
+  const existingNames     = characters.map(c => c.name).filter(Boolean)
+  const existingLoreTitles = loreEntries.map(e => e.title).filter(Boolean)
 
   return (
     <div className="min-h-screen bg-axiom-bg flex flex-col">
@@ -508,8 +645,10 @@ export default function Characters() {
         <ImportFromManuscriptModal
           projectId={projectId}
           existingNames={existingNames}
+          existingLoreTitles={existingLoreTitles}
           onClose={() => setShowImport(false)}
           onCreate={handleImportCreate}
+          onCreateLore={createLoreEntry}
         />
       )}
     </div>
