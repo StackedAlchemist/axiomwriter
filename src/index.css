@@ -264,32 +264,55 @@
 
 /*
  * When a writing environment theme is active (data-writing-env is set and non-empty),
- * the project editor root bg becomes transparent so the fixed theme panels show through.
- * The sidebar and header retain their surface backgrounds but become slightly translucent,
- * letting the themed edge panels breathe through.
+ * the environment is a full-viewport backdrop (ThemeBackground, z-index:-1). The app
+ * surfaces on top become semi-translucent frosted glass so the environment glows
+ * through the margins and faintly behind the prose — atmosphere AROUND the editor,
+ * never consuming layout space.
  */
 :root[data-writing-env]:not([data-writing-env=""]) .project-detail-root {
   background: transparent !important;
 }
 
-/* Sidebar wrapper — becomes semi-transparent so left panel bleeds through */
+/* Sidebar wrapper — frosted glass over the environment */
 :root[data-writing-env]:not([data-writing-env=""]) .manuscript-sidebar-wrap {
-  background: rgba(8, 8, 24, 0.80) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(8, 8, 24, 0.72) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
-/* Header — slight glassy transparency */
+/* Header — frosted glass strip */
 :root[data-writing-env]:not([data-writing-env=""]) .project-detail-header {
-  background: rgba(13, 13, 43, 0.88) !important;
+  background: rgba(13, 13, 43, 0.82) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* Scene editor writing area — picks up the active theme's accent tint so the
-   writing box feels immersed in the environment rather than cut off from it. */
+/* Scene editor writing canvas — semi-translucent "page" floating over the
+   environment. Dark enough to hold body-text contrast (WCAG AA), translucent
+   enough that the environment is felt behind every line. */
 :root[data-writing-env]:not([data-writing-env=""]) .scene-editor-wrap {
-  background: rgba(var(--theme-accent-rgb, 8,8,24), 0.06) !important;
+  background: rgba(7, 8, 22, 0.55) !important;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* Inner editor chrome (toolbar, tab bar, status bar) — let the page tint show
+   through instead of stamping solid dark bands across the immersive surface. */
+:root[data-writing-env]:not([data-writing-env=""]) .scene-editor-wrap .bg-axiom-surface,
+:root[data-writing-env]:not([data-writing-env=""]) .scene-editor-wrap .bg-axiom-surface\/80,
+:root[data-writing-env]:not([data-writing-env=""]) .scene-editor-wrap .bg-axiom-surface\/60 {
+  background-color: rgba(7, 8, 22, 0.35) !important;
+}
+
+/* Light app mode — the page becomes a translucent light sheet so dark text on
+   light backgrounds stays readable regardless of the environment image. */
+html.light[data-writing-env]:not([data-writing-env=""]) .scene-editor-wrap {
+  background: rgba(248, 246, 240, 0.68) !important;
+}
+html.light[data-writing-env]:not([data-writing-env=""]) .scene-editor-wrap .bg-axiom-surface,
+html.light[data-writing-env]:not([data-writing-env=""]) .scene-editor-wrap .bg-axiom-surface\/80,
+html.light[data-writing-env]:not([data-writing-env=""]) .scene-editor-wrap .bg-axiom-surface\/60 {
+  background-color: rgba(248, 246, 240, 0.45) !important;
 }
 
 /* ── TipTap Prose Editor (dark) ──────────────────────────────────────────── */

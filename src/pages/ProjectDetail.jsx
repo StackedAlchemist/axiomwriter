@@ -290,8 +290,12 @@ export default function ProjectDetail() {
   return (
     <div className="project-detail-root flex flex-col h-screen overflow-hidden bg-axiom-bg">
 
-      {/* ── Writing environment theme panels (fixed, behind everything) ── */}
+      {/* ── Writing environment backdrop (fixed full-viewport, z-0) ── */}
       <ThemeBackground />
+
+      {/* ── Content layer — lifted above the backdrop (z-1) so the
+              environment sits behind, not over, the app ── */}
+      <div className="project-detail-content relative z-[1] flex flex-col flex-1 min-h-0">
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <header className={`
@@ -864,6 +868,7 @@ export default function ProjectDetail() {
           }}
         />
       )}
+      </div>
     </div>
   )
 }

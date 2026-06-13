@@ -1,105 +1,66 @@
 /**
  * ThemeBackground
  *
- * Renders two fixed edge panels (left 15vw, right 15vw) that display the
- * current writing environment theme image.
+ * Renders ONE fixed full-viewport backdrop for the active writing environment.
+ * The environment is atmosphere *behind* the whole app — it never consumes
+ * layout space. The editor, sidebar, and header sit on top as semi-translucent
+ * frosted surfaces (see the `data-writing-env` rules in index.css), so the
+ * environment glows through the margins and faintly behind the prose.
  *
- * Layout contract:
- *   [ LEFT PANEL 15vw ] [ transparent gap 70vw ] [ RIGHT PANEL 15vw ]
- *
- * The panels use position:fixed so they sit below all app content at z-index:1.
- * pointer-events:none means they never intercept clicks or keyboard events.
- *
- * Each panel layers:
- *   1. The theme image (background-image, covers the panel area)
- *   2. A per-theme tint overlay div (for color warmth / atmosphere)
- *   3. An animated overlay div (handles the theme animation effect)
- *   4. An inner-edge gradient that fades the image toward the center,
- *      blending seamlessly with the editor background
+ * Sits at z-index:0 (above the opaque body/html background, below the app content
+ * which ProjectDetail lifts into a z-index:1 wrapper). Layer stack (bottom → top):
+ *   1. Environment image / gradient, dimmed so it reads as mood not noise
+ *   2. Per-theme color tint (overlayColor) for warmth
+ *   3. Animated tint overlay (theme-specific subtle motion)
+ *   4. Dark scrim — preserves body-text contrast at WCAG AA over any image
  */
 
 import React from 'react'
 import { useWritingTheme } from '../../contexts/WritingThemeContext'
 
 export default function ThemeBackground() {
-  const { currentTheme } = useWritingTheme()
+  const { currentTheme: t } = useWritingTheme()
 
-  if (!currentTheme || (!currentTheme.image && !currentTheme.cssBackground)) return null
+  if (!t || (!t.image && !t.cssBackground)) return null
 
-  return (
-    <>
-      {/* LEFT PANEL ──────────────────────────────────────────────────────── */}
-      <ThemePanel
-        side="left"
-        theme={currentTheme}
-      />
-
-      {/* RIGHT PANEL ─────────────────────────────────────────────────────── */}
-      <ThemePanel
-        side="right"
-        theme={currentTheme}
-      />
-    </>
-  )
-}
-
-function ThemePanel({ side, theme }) {
-  const isLeft = side === 'left'
-
-  // The gradient fades the image INTO the center (toward bg color)
-  // Left panel fades right-ward, right panel fades left-ward
-  const fadeGradient = isLeft
-    ? `linear-gradient(to right, rgba(0,0,0,0.1) 0%, ${theme.fadeColor} 100%)`
-    : `linear-gradient(to left, rgba(0,0,0,0.1) 0%, ${theme.fadeColor} 100%)`
-
-  const bgPosition = isLeft ? 'left center' : 'right center'
-
-  const panelBackground = theme.image
-    ? { backgroundImage: `url(${theme.image})`, backgroundPosition: bgPosition, backgroundSize: 'cover', backgroundRepeat: 'no-repeat' }
-    : { background: theme.cssBackground }
+  // Image scenes are busy — dim hard. CSS gradients are designed to bleed, keep more.
+  const envLayer = t.image
+    ? {
+        backgroundImage:    `url(${t.image})`,
+        backgroundSize:     'cover',
+        backgroundPosition: 'center center',
+        backgroundRepeat:   'no-repeat',
+        opacity:            0.5,
+      }
+    : { background: t.cssBackground, opacity: 0.72 }
 
   return (
     <div
       aria-hidden="true"
-      style={{
-        position:      'fixed',
-        top:           0,
-        bottom:        0,
-        [isLeft ? 'left' : 'right']: 0,
-        width:         '15vw',
-        zIndex:        1,
-        pointerEvents: 'none',
-        overflow:      'hidden',
-        ...panelBackground,
-      }}
+      style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}
     >
-      {/* Atmospheric tint overlay — gives each theme its color warmth */}
-      <div
-        style={{
-          position:   'absolute',
-          inset:      0,
-          background: theme.overlayColor,
-        }}
-      />
+      {/* 1 — Environment image / gradient, dimmed */}
+      <div style={{ position: 'absolute', inset: 0, ...envLayer }} />
 
-      {/* Animation overlay — theme-specific subtle motion effect */}
-      {theme.animation && (
+      {/* 2 — Per-theme color tint */}
+      <div style={{ position: 'absolute', inset: 0, background: t.overlayColor }} />
+
+      {/* 3 — Animated tint (flicker / drift / pulse, per theme) */}
+      {t.animation && (
         <div
-          className={`theme-anim-${theme.animation}`}
-          style={{
-            position:   'absolute',
-            inset:      0,
-            background: theme.overlayColor,
-          }}
+          className={`theme-anim-${t.animation}`}
+          style={{ position: 'absolute', inset: 0, background: t.overlayColor }}
         />
       )}
 
-      {/* Edge gradient — fades image toward center for readability */}
+      {/* 4 — Dark scrim for text contrast (slightly heavier toward the bottom
+              where the status bar and most prose sit) */}
       <div
         style={{
-          position:   'absolute',
-          inset:      0,
-          background: fadeGradient,
+          position: 'absolute',
+          inset: 0,
+          background:
+            'linear-gradient(to bottom, rgba(4,4,14,0.42) 0%, rgba(4,4,14,0.48) 60%, rgba(4,4,14,0.55) 100%)',
         }}
       />
     </div>
