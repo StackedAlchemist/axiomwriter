@@ -470,25 +470,4 @@ export const DOSSIER_TYPES = [
     description: 'Identity, stats, gear, relationships',
     icon: 'user',
   },
-  {
-    type: 'faction_dossier',
-    label: 'Faction Dossier',
-    description: 'Org structure, members, territory',
-    icon: 'users',
-    soon: true,
-  },
-  {
-    type: 'location_dossier',
-    label: 'Location Record',
-    description: 'Place profile, history, map notes',
-    icon: 'map-pin',
-    soon: true,
-  },
-  {
-    type: 'relic',
-    label: 'Relic / Artifact',
-    description: 'Item lore, origin, powers',
-    icon: 'zap',
-    soon: true,
-  },
 ]
