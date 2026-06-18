@@ -23,9 +23,13 @@ const PRICE_TO_TIER = {
 
 // ── Create Checkout Session ───────────────────────────────────────────────────
 exports.createCheckoutSession = onCall(async (request) => {
-  const { priceId, userId, userEmail, successUrl, cancelUrl } = request.data
+  // Identity comes from the verified auth context, never the client payload.
+  if (!request.auth) throw new HttpsError('unauthenticated', 'You must be signed in.')
+  const userId    = request.auth.uid
+  const userEmail = request.auth.token?.email || request.data?.userEmail
+  const { priceId, successUrl, cancelUrl } = request.data
 
-  if (!priceId || !userId) throw new HttpsError('invalid-argument', 'Missing priceId or userId')
+  if (!priceId) throw new HttpsError('invalid-argument', 'Missing priceId')
 
   const stripe = getStripe()
 
@@ -61,8 +65,11 @@ exports.createCheckoutSession = onCall(async (request) => {
 
 // ── Create Billing Portal ─────────────────────────────────────────────────────
 exports.createBillingPortal = onCall(async (request) => {
-  const { userId, returnUrl } = request.data
-  if (!userId) throw new HttpsError('invalid-argument', 'Missing userId')
+  // Identity comes from the verified auth context — prevents pulling up another
+  // user's Stripe billing portal by passing their uid.
+  if (!request.auth) throw new HttpsError('unauthenticated', 'You must be signed in.')
+  const userId = request.auth.uid
+  const { returnUrl } = request.data
 
   const userDoc = await db.collection('users').doc(userId).get()
   const customerId = userDoc.data()?.stripeCustomerId
@@ -152,10 +159,14 @@ const FOUNDER_EMAILS = new Set([
 ])
 
 exports.callAI = onCall(async (request) => {
-  // Accepts either simple form { userId, feature, systemPrompt, userMessage }
-  // or full form { userId, feature, model, system, messages, max_tokens }
+  // Caller identity comes from the verified auth context, never the payload —
+  // otherwise anyone could spend another user's (or a founder's) AI quota.
+  if (!request.auth) throw new HttpsError('unauthenticated', 'You must be signed in.')
+  const userId = request.auth.uid
+
+  // Accepts either simple form { feature, systemPrompt, userMessage }
+  // or full form { feature, model, system, messages, max_tokens }
   const {
-    userId,
     feature,
     systemPrompt,
     userMessage,
@@ -164,8 +175,6 @@ exports.callAI = onCall(async (request) => {
     model: requestedModel,
     max_tokens = 1024,
   } = request.data
-
-  if (!userId) throw new HttpsError('invalid-argument', 'Missing userId')
 
   const messages = rawMessages ?? [{ role: 'user', content: userMessage }]
   const system   = rawSystem ?? systemPrompt ?? "You are a skilled fiction writing assistant. Be concise and match the author's voice."
@@ -256,9 +265,12 @@ exports.callAI = onCall(async (request) => {
 // Requires Composer tier or above (cover studio is a paid feature).
 
 exports.generateImage = onCall(async (request) => {
-  const { userId, prompt, negativePrompt, width = 832, height = 1216, steps = 30, cfgScale = 7 } = request.data
+  // Identity comes from the verified auth context, never the payload.
+  if (!request.auth) throw new HttpsError('unauthenticated', 'You must be signed in.')
+  const userId = request.auth.uid
+  const { prompt, negativePrompt, width = 832, height = 1216, steps = 30, cfgScale = 7 } = request.data
 
-  if (!userId || !prompt) throw new HttpsError('invalid-argument', 'Missing userId or prompt')
+  if (!prompt) throw new HttpsError('invalid-argument', 'Missing prompt')
 
   // Gate: Composer+ only
   const userDoc = await db.collection('users').doc(userId).get()
