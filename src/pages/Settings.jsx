@@ -28,7 +28,12 @@ export default function Settings() {
   const [active, setActive] = useState('billing')
   const [showPricing, setShowPricing] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
+  const [portalError, setPortalError] = useState('')
   const [upgraded, setUpgraded] = useState(false)
+
+  // A manageable billing account only exists once the user has completed Stripe
+  // checkout. Founder/comped accounts (architect via email) never do.
+  const hasStripeBilling = !!subscription?.stripeSubscriptionId
 
   useEffect(() => {
     if (window.location.search.includes('upgraded=1') || window.location.search.includes('checkout=success')) {
@@ -39,9 +44,19 @@ export default function Settings() {
   }, [])
 
   async function handleBillingPortal() {
+    setPortalError('')
     setPortalLoading(true)
-    try { await openBillingPortal(currentUser.uid) }
-    catch { setPortalLoading(false) }
+    try {
+      // On success this redirects to Stripe, so we don't reset loading here.
+      await openBillingPortal(currentUser.uid)
+    } catch (err) {
+      const noCustomer = err?.code === 'functions/not-found'
+        || /no stripe customer/i.test(err?.message || '')
+      setPortalError(noCustomer
+        ? 'No billing account to manage yet.'
+        : 'Couldn’t open the billing portal. Please try again.')
+      setPortalLoading(false)
+    }
   }
 
   return (
@@ -98,7 +113,7 @@ export default function Settings() {
                     >
                       Upgrade
                     </button>
-                  ) : (
+                  ) : hasStripeBilling ? (
                     <button
                       onClick={handleBillingPortal}
                       disabled={portalLoading}
@@ -107,8 +122,16 @@ export default function Settings() {
                       <ExternalLink className="w-3.5 h-3.5" />
                       {portalLoading ? 'Loading…' : 'Manage billing'}
                     </button>
+                  ) : (
+                    <span className="text-xs text-slate-500 italic max-w-[160px] text-right">
+                      Complimentary plan — no billing to manage
+                    </span>
                   )}
                 </div>
+
+                {portalError && (
+                  <p className="text-xs text-red-400 mt-3">{portalError}</p>
+                )}
 
                 {subscription?.currentPeriodEnd && (
                   <p className="text-xs text-slate-600">
