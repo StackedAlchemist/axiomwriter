@@ -43,6 +43,7 @@ const SceneEditor = React.forwardRef(function SceneEditor({
   const [refinementMenu, setRefinementMenu] = useState(null)
   const [activeTab,  setActiveTab]  = useState('write')
   const [notesVal,   setNotesVal]   = useState(sceneMeta?.notes ?? '')
+  const [splitDismissed, setSplitDismissed] = useState(false)
 
   // Reset tab and notes when scene changes
   useEffect(() => {
@@ -119,6 +120,12 @@ const SceneEditor = React.forwardRef(function SceneEditor({
       setRefinementMenu({ x: coords.left, y: coords.top - 44, selectedText, from, to })
     },
   })
+
+  // Seed the word count when the scene loads (onUpdate only fires on edits),
+  // so the split-manuscript banner can appear on open, not just after typing.
+  useEffect(() => {
+    if (editor) setLocalWords(countWords(editor.getText()))
+  }, [editor]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const loreUpdateTimer = useRef(null)
   useEffect(() => {
@@ -297,6 +304,30 @@ const SceneEditor = React.forwardRef(function SceneEditor({
         className="flex-1 flex flex-col overflow-hidden"
         style={{ display: activeTab === 'write' ? undefined : 'none' }}
       >
+        {/* Whole-manuscript recovery: a scene this big is almost certainly a
+            full paste that skipped the import flow. Offer to split it. */}
+        {!focusMode && !splitDismissed && localWords >= 8000 && onLargePaste && (
+          <div className="mx-4 sm:mx-8 mt-4 max-w-[740px] lg:mx-auto w-auto lg:w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gold-500/10 border border-gold-500/30 flex-shrink-0">
+            <BookOpen className="w-4 h-4 text-gold-400 flex-shrink-0" />
+            <p className="flex-1 text-xs text-slate-300 leading-relaxed">
+              This scene holds <span className="font-semibold text-gold-400">{localWords.toLocaleString()} words</span> — that looks like a whole manuscript.
+              Want Axiom to detect the chapters and scenes and split it up?
+            </p>
+            <button
+              onClick={() => onLargePaste(editor?.getText() || '')}
+              className="btn-primary text-xs whitespace-nowrap flex-shrink-0"
+            >
+              Detect chapters
+            </button>
+            <button
+              onClick={() => setSplitDismissed(true)}
+              className="p-1 text-slate-600 hover:text-slate-300 transition-colors flex-shrink-0"
+              title="Dismiss"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         {/* Scene title */}
         <div className="px-4 sm:px-8 pt-8 pb-2 max-w-[740px] mx-auto w-full">
           {editingTitle ? (
