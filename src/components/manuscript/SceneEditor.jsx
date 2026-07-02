@@ -33,6 +33,7 @@ const SceneEditor = React.forwardRef(function SceneEditor({
   onToggleComposer, composerActive, onActivity, characters,
   threads, onLinkThread, onUnlinkThread,
   onLargePaste,
+  activeTab: activeTabProp, onTabChange,
 }, ref) {
   const scrollRef    = useRef(null)
   const contentRef   = useRef(initialContent ?? '')
@@ -41,15 +42,19 @@ const SceneEditor = React.forwardRef(function SceneEditor({
   const [localWords, setLocalWords] = useState(0)
   const [gapPopover, setGapPopover] = useState(null)
   const [refinementMenu, setRefinementMenu] = useState(null)
-  const [activeTab,  setActiveTab]  = useState('write')
+  const [internalTab, setInternalTab] = useState('write')
   const [notesVal,   setNotesVal]   = useState(sceneMeta?.notes ?? '')
   const [splitDismissed, setSplitDismissed] = useState(false)
 
-  // Reset tab and notes when scene changes
+  // Tab state: controlled by the parent when provided, so the chosen tab
+  // (e.g. Details) survives scene-to-scene navigation during a working pass.
+  const activeTab    = activeTabProp ?? internalTab
+  const setActiveTab = onTabChange ?? setInternalTab
+
+  // Sync notes when scene changes (tab deliberately persists across scenes)
   useEffect(() => {
-    setActiveTab('write')
     setNotesVal(sceneMeta?.notes ?? '')
-  }, [sceneId])
+  }, [sceneId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync notes if sceneMeta updates externally
   useEffect(() => {

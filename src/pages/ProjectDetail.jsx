@@ -67,6 +67,7 @@ export default function ProjectDetail() {
   const threadEngineRunning    = useRef(false)
   const [devEditFinding,       setDevEditFinding]       = useState(null)
   const [pasteImportText,      setPasteImportText]      = useState(null)
+  const [editorTab,            setEditorTab]            = useState('write') // survives scene switches
   const [showStructurePanel,   setShowStructurePanel]   = useState(false)
   const [structurePanelPos,    setStructurePanelPos]    = useState({ left: 0, top: 52 })
   const [showFilesDropdown,    setShowFilesDropdown]    = useState(false)
@@ -580,6 +581,8 @@ export default function ProjectDetail() {
               sceneLoading={ms.sceneLoading}
               focusMode={focusMode}
               onLargePaste={text => setPasteImportText(text)}
+              activeTab={editorTab}
+              onTabChange={setEditorTab}
               onFocusExit={() => setFocusMode(false)}
               onSave={ms.saveSceneContent}
               onSaveStatusChange={handleSaveStatusChange}
