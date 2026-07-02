@@ -197,8 +197,9 @@ export function Terms() {
       <section>
         <h2>11. Governing law and contact</h2>
         <p>
-          These terms are governed by the laws of the United States and the state in which Stacked
-          Alchemist LLC is organized, without regard to conflict-of-law rules. Questions, disputes, or
+          These terms are governed by the laws of the State of Arizona and applicable United States
+          federal law, without regard to conflict-of-law rules. Any disputes will be resolved in the
+          state or federal courts located in Maricopa County, Arizona. Questions, disputes, or
           notices: <strong>{CONTACT_EMAIL}</strong>. We'd rather fix a problem than litigate one — write
           to us first.
         </p>
