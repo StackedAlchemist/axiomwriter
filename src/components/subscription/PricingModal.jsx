@@ -161,7 +161,7 @@ export default function PricingModal({ onClose, highlightFeature }) {
                     disabled={!!loading}
                     className="w-full py-2 rounded-lg text-xs font-semibold bg-gold-500/10 hover:bg-gold-500/20 text-gold-400 border border-gold-500/30 transition-colors disabled:opacity-50"
                   >
-                    {loading === plan.id ? 'Redirecting…' : `Upgrade to ${plan.name}`}
+                    {loading === plan.id ? 'Redirecting…' : `Start 7-day free trial`}
                   </button>
                 )}
               </div>
@@ -170,7 +170,7 @@ export default function PricingModal({ onClose, highlightFeature }) {
         </div>
 
         <p className="text-center text-xs text-slate-600 pb-6">
-          Secure payments via Stripe · Cancel anytime · No hidden fees
+          7-day free trial on your first plan · You won't be charged until the trial ends · Secure payments via Stripe · Cancel anytime
         </p>
       </div>
     </div>

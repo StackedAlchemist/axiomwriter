@@ -21,6 +21,11 @@ const PRICE_TO_TIER = {
   [process.env.STRIPE_ARCHITECT_PRICE_ID]:'architect',
 }
 
+// Subscription statuses that grant paid-tier access. 'trialing' counts —
+// free-trial users get the full experience of the tier they're trying.
+const ENTITLED_STATUSES = new Set(['active', 'trialing'])
+const TRIAL_DAYS = 7
+
 // ── Create Checkout Session ───────────────────────────────────────────────────
 exports.createCheckoutSession = onCall(async (request) => {
   // Identity comes from the verified auth context, never the client payload.
@@ -47,6 +52,10 @@ exports.createCheckoutSession = onCall(async (request) => {
     await userRef.update({ stripeCustomerId: customerId })
   }
 
+  // First-time subscribers get a free trial; anyone who has ever had a
+  // subscription doesn't (prevents cancel-and-resubscribe trial farming).
+  const hasSubscribedBefore = Boolean(userDoc.data()?.subscription?.stripeSubscriptionId)
+
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
@@ -56,6 +65,7 @@ exports.createCheckoutSession = onCall(async (request) => {
     cancel_url: cancelUrl,
     subscription_data: {
       metadata: { firebaseUID: userId },
+      ...(hasSubscribedBefore ? {} : { trial_period_days: TRIAL_DAYS }),
     },
     allow_promotion_codes: true,
   })
@@ -199,7 +209,7 @@ exports.callAI = onCall(async (request) => {
   const isFounder = FOUNDER_EMAILS.has(authEmail)
 
   if (!isFounder) {
-    const tier = userData.subscription?.status === 'active'
+    const tier = ENTITLED_STATUSES.has(userData.subscription?.status)
       ? (userData.subscription?.tier ?? 'free')
       : 'free'
 
@@ -285,7 +295,7 @@ exports.generateImage = onCall(async (request) => {
   const isFounder = FOUNDER_EMAILS.has(authEmail)
 
   if (!isFounder) {
-    const tier = userData.subscription?.status === 'active'
+    const tier = ENTITLED_STATUSES.has(userData.subscription?.status)
       ? (userData.subscription?.tier ?? 'free')
       : 'free'
     const TIER_ORDER = ['free', 'writer', 'composer', 'architect']

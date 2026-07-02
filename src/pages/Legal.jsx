@@ -122,6 +122,11 @@ export function Terms() {
           </li>
           <li>Payments are processed by <strong>Stripe</strong>. We never see or store your full card details.</li>
           <li>
+            First-time subscribers get a <strong>7-day free trial</strong>. You won't be charged until
+            the trial ends, and canceling during the trial costs nothing. The trial applies once per
+            account.
+          </li>
+          <li>
             Paid plans renew automatically each billing period until canceled. You can cancel anytime
             from Settings → Manage Billing; your plan stays active until the end of the period you've
             paid for, then downgrades to the free tier. Your content is not deleted on downgrade.

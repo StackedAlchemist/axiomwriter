@@ -114,9 +114,11 @@ export function useSubscription() {
 
   const isFounder = FOUNDER_EMAILS.has(currentUser?.email?.toLowerCase())
 
+  // 'trialing' grants the same access as 'active' — free-trial users get the
+  // full tier they're trying.
   const tierId = isFounder
     ? 'architect'
-    : subscription?.status === 'active'
+    : ['active', 'trialing'].includes(subscription?.status)
       ? (subscription?.tier ?? 'free')
       : 'free'
 
