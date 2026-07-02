@@ -1,6 +1,7 @@
-import React, { useState, useRef, useCallback } from 'react'
-import { Upload, X, FileText, CheckCircle, AlertCircle, Loader2, ChevronRight, ChevronDown, BookOpen, PlusCircle } from 'lucide-react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
+import { Upload, X, FileText, CheckCircle, AlertCircle, Loader2, ChevronRight, ChevronDown, BookOpen, PlusCircle, Trash2, ClipboardPaste } from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
+import { detectStructureFromText } from '../../lib/structureDetect'
 
 const genId = (prefix) => `${prefix}_${uuidv4().slice(0, 8)}`
 
@@ -157,10 +158,10 @@ function EditableTitle({ value, onChange }) {
   )
 }
 
-function ChapterNode({ chapter, onRenameChapter, onRenameScene }) {
+function ChapterNode({ chapter, onRenameChapter, onRenameScene, onDeleteChapter, canDelete }) {
   const [expanded, setExpanded] = useState(true)
   return (
-    <div className="ml-2">
+    <div className="ml-2 group/chapter">
       <div className="flex items-center gap-1.5 py-1">
         <button onClick={() => setExpanded(p => !p)} className="text-slate-600 hover:text-slate-400 transition-colors flex-shrink-0">
           {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
@@ -168,6 +169,15 @@ function ChapterNode({ chapter, onRenameChapter, onRenameScene }) {
         <BookOpen className="w-3 h-3 text-teal-500 flex-shrink-0" />
         <EditableTitle value={chapter.title} onChange={title => onRenameChapter(chapter.id, title)} />
         <span className="text-[10px] text-slate-700 ml-1">{chapter.scenes.length} scene{chapter.scenes.length !== 1 ? 's' : ''}</span>
+        {canDelete && (
+          <button
+            onClick={() => onDeleteChapter(chapter.id)}
+            title="Don't import this chapter"
+            className="ml-auto mr-1 p-0.5 rounded text-slate-700 opacity-0 group-hover/chapter:opacity-100 hover:text-red-400 transition-all flex-shrink-0"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        )}
       </div>
       {expanded && (
         <div className="ml-6 space-y-0.5">
@@ -187,18 +197,36 @@ function ChapterNode({ chapter, onRenameChapter, onRenameScene }) {
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────────────
-export default function ImportDocxModal({ projectId, projectTitle, onClose, onImported }) {
+// Accepts either a picked/dropped file (.docx, .txt, .md) or `initialText`
+// (a large paste intercepted by the editor) — both land in the same preview.
+export default function ImportDocxModal({ projectId, projectTitle, onClose, onImported, initialText }) {
   const fileRef = useRef(null)
 
   const [file,        setFile]        = useState(null)
-  const [step,        setStep]        = useState('pick') // pick | parsing | preview | importing | done | error
+  const [step,        setStep]        = useState(initialText ? 'parsing' : 'pick') // pick | parsing | preview | importing | done | error
   const [error,       setError]       = useState('')
   const [dragOver,    setDragOver]    = useState(false)
   const [importMode,  setImportMode]  = useState('replace') // 'replace' | 'append'
+  const [fromPaste,   setFromPaste]   = useState(Boolean(initialText))
 
   // Editable parsed data
   const [structure,     setStructure]     = useState(null)
   const [sceneContents, setSceneContents] = useState(null)
+
+  // Pasted-manuscript mode: detect structure immediately, skip the file step
+  useEffect(() => {
+    if (!initialText) return
+    try {
+      const parsed = detectStructureFromText(initialText)
+      setStructure(parsed.structure)
+      setSceneContents(parsed.sceneContents)
+      setStep('preview')
+    } catch (err) {
+      console.error(err)
+      setError('Could not detect structure in the pasted text.')
+      setStep('error')
+    }
+  }, [initialText])
 
   // Derived counts from current structure
   const allChapters = structure
@@ -212,24 +240,36 @@ export default function ImportDocxModal({ projectId, projectTitle, onClose, onIm
     : 0
 
   const processFile = useCallback(async (f) => {
-    if (!f || !f.name.endsWith('.docx')) {
-      setError('Please select a .docx file.')
+    const name = f?.name?.toLowerCase() || ''
+    const isDocx = name.endsWith('.docx')
+    const isText = name.endsWith('.txt') || name.endsWith('.md')
+    if (!f || (!isDocx && !isText)) {
+      setError('Please select a .docx, .txt, or .md file.')
       return
     }
     setFile(f)
+    setFromPaste(false)
     setStep('parsing')
     setError('')
     try {
-      const mammoth = (await import('mammoth')).default
-      const arrayBuffer = await f.arrayBuffer()
-      const result = await mammoth.convertToHtml({ arrayBuffer })
-      const parsed = parseDocxHtml(result.value)
+      let parsed
+      if (isDocx) {
+        const mammoth = (await import('mammoth')).default
+        const arrayBuffer = await f.arrayBuffer()
+        const result = await mammoth.convertToHtml({ arrayBuffer })
+        parsed = parseDocxHtml(result.value)
+      } else {
+        const text = await f.text()
+        parsed = detectStructureFromText(text)
+      }
       setStructure(parsed.structure)
       setSceneContents(parsed.sceneContents)
       setStep('preview')
     } catch (err) {
       console.error(err)
-      setError('Failed to parse .docx file. Make sure it is a valid Word document.')
+      setError(isDocx
+        ? 'Failed to parse .docx file. Make sure it is a valid Word document.'
+        : 'Failed to read the text file.')
       setStep('error')
     }
   }, [])
@@ -249,6 +289,21 @@ export default function ImportDocxModal({ projectId, projectTitle, onClose, onIm
         return { ...prev, parts: prev.parts.map(p => ({ ...p, chapters: update(p.chapters) })) }
       }
       return { ...prev, chapters: update(prev.chapters) }
+    })
+  }
+
+  function deleteChapter(chapterId) {
+    setStructure(prev => {
+      if (!prev) return prev
+      const drop = chs => chs.filter(ch => ch.id !== chapterId)
+      if (prev.hasParts) {
+        return {
+          ...prev,
+          parts: prev.parts.map(p => ({ ...p, chapters: drop(p.chapters) })).filter(p => p.chapters.length > 0),
+          chapters: drop(prev.chapters),
+        }
+      }
+      return { ...prev, chapters: drop(prev.chapters) }
     })
   }
 
@@ -282,6 +337,7 @@ export default function ImportDocxModal({ projectId, projectTitle, onClose, onIm
 
   function reset() {
     setFile(null)
+    setFromPaste(false)
     setStep('pick')
     setError('')
     setStructure(null)
@@ -295,7 +351,9 @@ export default function ImportDocxModal({ projectId, projectTitle, onClose, onIm
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-axiom-border flex-shrink-0">
           <div>
-            <h2 className="font-serif text-lg font-semibold text-slate-100">Import .docx</h2>
+            <h2 className="font-serif text-lg font-semibold text-slate-100">
+              {fromPaste ? 'Import pasted manuscript' : 'Import manuscript'}
+            </h2>
             <p className="text-xs text-slate-500 mt-0.5">
               {projectTitle ? `Into: ${projectTitle}` : 'Auto-detects chapters, scenes, and structure'}
             </p>
@@ -348,9 +406,9 @@ export default function ImportDocxModal({ projectId, projectTitle, onClose, onIm
                 `}
               >
                 <Upload className="w-8 h-8 text-slate-600 mx-auto mb-3" />
-                <p className="text-sm text-slate-300 font-medium mb-1">Drop your .docx file here</p>
-                <p className="text-xs text-slate-600">or click to browse</p>
-                <input ref={fileRef} type="file" accept=".docx" className="hidden" onChange={handleFileChange} />
+                <p className="text-sm text-slate-300 font-medium mb-1">Drop your .docx, .txt, or .md file here</p>
+                <p className="text-xs text-slate-600">or click to browse — you can also paste a whole manuscript straight into any scene</p>
+                <input ref={fileRef} type="file" accept=".docx,.txt,.md" className="hidden" onChange={handleFileChange} />
               </div>
 
               {error && (
@@ -363,11 +421,11 @@ export default function ImportDocxModal({ projectId, projectTitle, onClose, onIm
               <div className="card p-4 space-y-2">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">How structure is detected</p>
                 {[
-                  ['Heading 1 + Heading 2', 'Parts → Chapters → Scenes'],
-                  ['Heading 1 only',         'Chapters → Scenes'],
-                  ['Heading 2 only',         'Chapters → Scenes'],
-                  ['***, ---, or <hr>',      'Scene breaks within chapters'],
-                  ['No headings',            'Single chapter, single scene'],
+                  ['Heading 1 + Heading 2',      'Parts → Chapters → Scenes'],
+                  ['Heading styles (.docx)',      'Chapters → Scenes'],
+                  ['"Chapter One", "Prologue"…',  'Chapters (paste / .txt / .md)'],
+                  ['***, ---, or <hr>',           'Scene breaks within chapters'],
+                  ['No headings',                 'Single chapter, single scene'],
                 ].map(([cue, result]) => (
                   <div key={cue} className="flex items-center gap-2 text-xs">
                     <code className="bg-axiom-surface2 border border-axiom-border px-1.5 py-0.5 rounded text-teal-400 font-mono text-[11px]">{cue}</code>
@@ -393,8 +451,10 @@ export default function ImportDocxModal({ projectId, projectTitle, onClose, onIm
               {/* File summary */}
               <div className="card p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <FileText className="w-4 h-4 text-teal-400 flex-shrink-0" />
-                  <p className="text-sm font-medium text-slate-200 truncate">{file?.name}</p>
+                  {fromPaste
+                    ? <ClipboardPaste className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                    : <FileText className="w-4 h-4 text-teal-400 flex-shrink-0" />}
+                  <p className="text-sm font-medium text-slate-200 truncate">{fromPaste ? 'Pasted manuscript' : file?.name}</p>
                 </div>
                 <div className="grid grid-cols-3 gap-3 text-center">
                   {[
@@ -428,6 +488,8 @@ export default function ImportDocxModal({ projectId, projectTitle, onClose, onIm
                             key={ch.id} chapter={ch}
                             onRenameChapter={renameChapter}
                             onRenameScene={renameScene}
+                            onDeleteChapter={deleteChapter}
+                            canDelete={allChapters.length > 1}
                           />
                         ))}
                       </div>
@@ -438,6 +500,8 @@ export default function ImportDocxModal({ projectId, projectTitle, onClose, onIm
                         key={ch.id} chapter={ch}
                         onRenameChapter={renameChapter}
                         onRenameScene={renameScene}
+                        onDeleteChapter={deleteChapter}
+                        canDelete={allChapters.length > 1}
                       />
                     ))
                   )}

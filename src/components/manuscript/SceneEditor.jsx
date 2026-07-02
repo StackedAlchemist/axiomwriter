@@ -32,6 +32,7 @@ const SceneEditor = React.forwardRef(function SceneEditor({
   loreTerms = [], onCreateLoreEntry,
   onToggleComposer, composerActive, onActivity, characters,
   threads, onLinkThread, onUnlinkThread,
+  onLargePaste,
 }, ref) {
   const scrollRef    = useRef(null)
   const contentRef   = useRef(initialContent ?? '')
@@ -67,6 +68,13 @@ const SceneEditor = React.forwardRef(function SceneEditor({
 
   onGapClickRef.current = (term, pos) => setGapPopover({ term, ...pos })
 
+  // Large-paste interception: a whole-manuscript paste should go through the
+  // structured import flow, not become one giant scene. Ref keeps the editor
+  // config stable while the callback stays fresh.
+  const onLargePasteRef = useRef(null)
+  onLargePasteRef.current = onLargePaste
+  const LARGE_PASTE_WORDS = 5000
+
   // ── TipTap editor setup ────────────────────────────────────────────────────
   const editor = useEditor({
     extensions: [
@@ -79,6 +87,17 @@ const SceneEditor = React.forwardRef(function SceneEditor({
       createLoreGapExtension(loreTermsRef, onGapClickRef),
     ],
     content: initialContent || '',
+    editorProps: {
+      handlePaste(view, event) {
+        const text = event.clipboardData?.getData('text/plain') || ''
+        if (onLargePasteRef.current && countWords(text) >= LARGE_PASTE_WORDS) {
+          event.preventDefault()
+          onLargePasteRef.current(text)
+          return true
+        }
+        return false // normal paste
+      },
+    },
     onUpdate({ editor }) {
       const html  = editor.getHTML()
       const words = countWords(editor.getText())

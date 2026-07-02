@@ -66,6 +66,7 @@ export default function ProjectDetail() {
   const [threadPrefill,        setThreadPrefill]        = useState(null)
   const threadEngineRunning    = useRef(false)
   const [devEditFinding,       setDevEditFinding]       = useState(null)
+  const [pasteImportText,      setPasteImportText]      = useState(null)
   const [showStructurePanel,   setShowStructurePanel]   = useState(false)
   const [structurePanelPos,    setStructurePanelPos]    = useState({ left: 0, top: 52 })
   const [showFilesDropdown,    setShowFilesDropdown]    = useState(false)
@@ -578,6 +579,7 @@ export default function ProjectDetail() {
               initialContent={ms.activeSceneContent?.content ?? ''}
               sceneLoading={ms.sceneLoading}
               focusMode={focusMode}
+              onLargePaste={text => setPasteImportText(text)}
               onFocusExit={() => setFocusMode(false)}
               onSave={ms.saveSceneContent}
               onSaveStatusChange={handleSaveStatusChange}
@@ -823,6 +825,17 @@ export default function ProjectDetail() {
           projectId={projectId}
           projectTitle={ms.project?.title}
           onClose={() => setShowImport(false)}
+          onImported={ms.importStructure}
+        />
+      )}
+
+      {/* Large paste intercepted by the editor → structured import flow */}
+      {pasteImportText && (
+        <ImportDocxModal
+          projectId={projectId}
+          projectTitle={ms.project?.title}
+          initialText={pasteImportText}
+          onClose={() => setPasteImportText(null)}
           onImported={ms.importStructure}
         />
       )}
