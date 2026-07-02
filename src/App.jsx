@@ -33,6 +33,8 @@ const Settings          = lazy(() => import('./pages/Settings'))
 const UserProfile       = lazy(() => import('./components/profile/UserProfile'))
 const SeriesView        = lazy(() => import('./pages/SeriesView'))
 const ReaderView        = lazy(() => import('./pages/ReaderView'))
+const Terms             = lazy(() => import('./pages/Legal').then(m => ({ default: m.Terms })))
+const Privacy           = lazy(() => import('./pages/Legal').then(m => ({ default: m.Privacy })))
 
 function PageLoader() {
   return (
@@ -74,6 +76,8 @@ export default function App() {
           <Route path="/login"           element={<Login />} />
           <Route path="/signup"          element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/terms"           element={<Suspense fallback={<PageLoader />}><Terms /></Suspense>} />
+          <Route path="/privacy"         element={<Suspense fallback={<PageLoader />}><Privacy /></Suspense>} />
           <Route path="/read/:shareId"   element={<Suspense fallback={<PageLoader />}><ReaderView /></Suspense>} />
 
           {/* Protected app routes */}
