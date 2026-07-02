@@ -3,9 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Sparkles, Map, Plus, Download, Upload, Layers,
   ChevronRight, Globe, Building2, MapPinned, Loader2, Settings2,
-  Trash2, Check, X, ZoomIn, ZoomOut, RotateCcw, Image, Eraser, Construction,
+  Trash2, Check, X, ZoomIn, ZoomOut, RotateCcw, Image, Eraser,
+  FlipHorizontal2, RotateCw,
 } from 'lucide-react'
-import { useWorldMap, MAP_TYPES, MAP_STYLES, TOOL_TYPES } from '../hooks/useWorldMap'
+import { useWorldMap, MAP_TYPES, MAP_STYLES, TOOL_TYPES, TERRAIN_BRUSHES } from '../hooks/useWorldMap'
+import { useTerrainPainter } from '../components/worldmap/useTerrainPainter'
+import { stampLabel } from '../components/worldmap/stampLibrary'
 import { useLore } from '../hooks/useLore'
 import { useManuscript } from '../hooks/useManuscript'
 import { generateProceduralBackground } from '../lib/mapAnalysis'
@@ -82,6 +85,59 @@ function ContextMenu({ x, y, pin, onAddChildMap, onPinScene, onOpenLore, onDelet
   )
 }
 
+// ── Stamp transform panel ─────────────────────────────────────────────────────
+function StampTransformPanel({ stamp, onChange, onGestureStart, onDelete, onClose }) {
+  return (
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 bg-axiom-surface/95 backdrop-blur border border-axiom-border rounded-2xl shadow-card px-4 py-3 flex items-center gap-4 animate-fade-in">
+      <span className="text-xs font-semibold text-slate-300 whitespace-nowrap">{stampLabel(stamp.type)}</span>
+
+      <label className="flex items-center gap-2 text-[10px] text-slate-500">
+        Size
+        <input
+          type="range"
+          min={0.4} max={3} step={0.1}
+          value={stamp.scale || 1}
+          onPointerDown={onGestureStart}
+          onChange={e => onChange({ scale: Number(e.target.value) })}
+          className="w-24 accent-amber-500"
+        />
+      </label>
+
+      <label className="flex items-center gap-2 text-[10px] text-slate-500">
+        <RotateCw className="w-3 h-3" />
+        <input
+          type="range"
+          min={-180} max={180} step={5}
+          value={stamp.rotation || 0}
+          onPointerDown={onGestureStart}
+          onChange={e => onChange({ rotation: Number(e.target.value) })}
+          className="w-24 accent-amber-500"
+        />
+      </label>
+
+      <button
+        onClick={() => { onGestureStart(); onChange({ flipX: !stamp.flipX }) }}
+        title="Flip horizontally"
+        className={`p-1.5 rounded-lg border transition-all ${stamp.flipX ? 'border-gold-500/50 bg-gold-500/10 text-gold-400' : 'border-axiom-border text-slate-500 hover:text-slate-300'}`}
+      >
+        <FlipHorizontal2 className="w-3.5 h-3.5" />
+      </button>
+
+      <button
+        onClick={onDelete}
+        title="Delete stamp"
+        className="p-1.5 rounded-lg border border-axiom-border text-slate-500 hover:text-red-400 hover:border-red-500/40 transition-all"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+
+      <button onClick={onClose} className="p-1 text-slate-600 hover:text-slate-300 transition-colors">
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  )
+}
+
 // ── Export modal ──────────────────────────────────────────────────────────────
 function ExportModal({ stageRef, mapName, onClose }) {
   const [preset,    setPreset]    = useState('current')
@@ -146,10 +202,20 @@ function NewMapModal({ onClose, onCreate }) {
   const [name,  setName]  = useState('My World')
   const [style, setStyle] = useState('parchment')
   const [type,  setType]  = useState(MAP_TYPES.WORLD)
+  const [creating, setCreating] = useState(false)
+  const [error,    setError]    = useState(null)
 
-  function handleCreate() {
-    const bg = generateProceduralBackground(style, 1600, 900)
-    onCreate({ name, style, type, backgroundData: bg })
+  async function handleCreate() {
+    setCreating(true)
+    setError(null)
+    try {
+      const bg = generateProceduralBackground(style, 1600, 900)
+      await onCreate({ name, style, type, backgroundData: bg })
+    } catch (err) {
+      console.error('[NewMapModal] create failed:', err)
+      setError(err?.message || 'Could not create the map. Check your connection and try again.')
+      setCreating(false)
+    }
   }
 
   return (
@@ -187,10 +253,15 @@ function NewMapModal({ onClose, onCreate }) {
             </div>
           </div>
         </div>
+        {error && (
+          <p className="px-5 pb-3 text-xs text-red-400">{error}</p>
+        )}
         <div className="px-5 pb-5 flex justify-end gap-2">
-          <button onClick={onClose} className="btn-secondary text-xs">Cancel</button>
-          <button onClick={handleCreate} className="btn-primary text-xs flex items-center gap-1.5">
-            <Map className="w-3.5 h-3.5" />Create Map
+          <button onClick={onClose} disabled={creating} className="btn-secondary text-xs disabled:opacity-50">Cancel</button>
+          <button onClick={handleCreate} disabled={creating} className="btn-primary text-xs flex items-center gap-1.5 disabled:opacity-60">
+            {creating
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating…</>
+              : <><Map className="w-3.5 h-3.5" />Create Map</>}
           </button>
         </div>
       </div>
@@ -223,6 +294,112 @@ export default function WorldMap() {
   const [strokeWidth,  setStrokeWidth]  = useState(1.5)
   const [selectedId,   setSelectedId]   = useState(null)
   const [selectedPin,  setSelectedPin]  = useState(null)
+  const [terrainBrush, setTerrainBrush] = useState(TERRAIN_BRUSHES[0])
+  const [brushSize,    setBrushSize]    = useState(40)
+
+  // ── Terrain paint engine ──────────────────────────────────────────────────
+  const painter = useTerrainPainter(wm.activeMap)
+
+  // ── Undo / redo for map objects (pins, paths, stamps, borders, labels) ────
+  // Terrain strokes have their own stack inside the paint engine; Ctrl+Z routes
+  // to it while the terrain tool is active.
+  const OBJECT_KEYS = ['pins', 'paths', 'stamps', 'factionBorders', 'labels']
+  const objUndoStack = useRef([])
+  const objRedoStack = useRef([])
+  const lastActionRef = useRef('objects') // 'objects' | 'terrain' — routes eraser-tool undo
+  const [undoTick, setUndoTick] = useState(0) // refresh toolbar button state
+
+  const snapshotObjects = useCallback(() => {
+    const m = wm.activeMap
+    if (!m) return null
+    const snap = {}
+    OBJECT_KEYS.forEach(k => { snap[k] = m[k] || [] })
+    return snap
+  }, [wm.activeMap]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pushUndo = useCallback(() => {
+    const snap = snapshotObjects()
+    if (!snap) return
+    objUndoStack.current.push(snap)
+    if (objUndoStack.current.length > 50) objUndoStack.current.shift()
+    objRedoStack.current = []
+    lastActionRef.current = 'objects'
+    setUndoTick(t => t + 1)
+  }, [snapshotObjects])
+
+  // The terrain tool always undoes paint strokes; the eraser can produce both
+  // kinds of change, so it follows whichever happened last.
+  const undoesTerrain = useCallback(() => {
+    if (activeTool === TOOL_TYPES.TERRAIN) return true
+    if (activeTool === TOOL_TYPES.ERASER) return lastActionRef.current === 'terrain' && painter.canUndo
+    return false
+  }, [activeTool, painter.canUndo])
+
+  const handleUndo = useCallback(() => {
+    if (undoesTerrain()) {
+      const dataUrl = painter.undo()
+      if (dataUrl != null) wm.persistMap(wm.activeMapId, { terrainData: dataUrl, terrainUrl: null })
+      return
+    }
+    const snap = objUndoStack.current.pop()
+    if (!snap) return
+    objRedoStack.current.push(snapshotObjects())
+    wm.persistMap(wm.activeMapId, snap)
+    setSelectedId(null)
+    setUndoTick(t => t + 1)
+  }, [activeTool, painter, wm, snapshotObjects]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRedo = useCallback(() => {
+    if (activeTool === TOOL_TYPES.TERRAIN) {
+      const dataUrl = painter.redo()
+      if (dataUrl != null) wm.persistMap(wm.activeMapId, { terrainData: dataUrl, terrainUrl: null })
+      return
+    }
+    const snap = objRedoStack.current.pop()
+    if (!snap) return
+    objUndoStack.current.push(snapshotObjects())
+    wm.persistMap(wm.activeMapId, snap)
+    setSelectedId(null)
+    setUndoTick(t => t + 1)
+  }, [activeTool, painter, wm, snapshotObjects]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const canUndo = activeTool === TOOL_TYPES.TERRAIN ? painter.canUndo : objUndoStack.current.length > 0
+  const canRedo = activeTool === TOOL_TYPES.TERRAIN ? painter.canRedo : objRedoStack.current.length > 0
+
+  // Reset object undo history when switching maps
+  useEffect(() => {
+    objUndoStack.current = []
+    objRedoStack.current = []
+    setUndoTick(t => t + 1)
+  }, [wm.activeMapId])
+
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  useEffect(() => {
+    function onKeyDown(e) {
+      const tag = e.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return
+      const mod = e.ctrlKey || e.metaKey
+      if (!mod) return
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault()
+        if (e.shiftKey) handleRedo()
+        else handleUndo()
+      } else if (e.key === 'y' || e.key === 'Y') {
+        e.preventDefault()
+        handleRedo()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handleUndo, handleRedo])
+
+  // Persist a committed terrain stroke (debounced Storage upload downstream)
+  const handleTerrainCommit = useCallback((dataUrl) => {
+    wm.persistMap(wm.activeMapId, { terrainData: dataUrl, terrainUrl: null })
+  }, [wm.persistMap, wm.activeMapId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Selected stamp (drives the transform panel)
+  const selectedStamp = wm.activeMap?.stamps?.find(s => s.id === selectedId) || null
 
   const [showGenerate,  setShowGenerate]  = useState(false)
   const [showNewMap,    setShowNewMap]    = useState(false)
@@ -242,6 +419,8 @@ export default function WorldMap() {
   }, [])
 
   // ── Map creation ─────────────────────────────────────────────────────────
+  // Both throw on failure so the modals can show the error instead of
+  // appearing to do nothing.
   async function handleGenerateCreate(mapData) {
     const id = await wm.createMap(mapData)
     wm.openMap(id)
@@ -370,12 +549,6 @@ export default function WorldMap() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-axiom-bg">
 
-      {/* ── Early Access Banner ───────────────────────────────────────────── */}
-      <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-gold-500/8 border-b border-gold-500/20 text-[11px] text-gold-400/80 flex-shrink-0">
-        <Construction className="w-3 h-3 flex-shrink-0" />
-        <span>Map Editor — Early Access. A full asset library, terrain painting, and advanced tools are coming in a future update.</span>
-      </div>
-
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <header className="flex items-center justify-between h-12 px-4 bg-axiom-surface border-b border-axiom-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -500,8 +673,13 @@ export default function WorldMap() {
           {map && (
             <button
               onClick={() => {
-                if (window.confirm('Clear all drawn paths, stamps, borders, and labels? Location pins are kept.')) {
-                  wm.persistMap(wm.activeMapId, { paths: [], stamps: [], factionBorders: [], labels: [] })
+                if (window.confirm('Clear all painted terrain, drawn paths, stamps, borders, and labels? Location pins are kept.')) {
+                  pushUndo()
+                  painter.clear()
+                  wm.persistMap(wm.activeMapId, {
+                    paths: [], stamps: [], factionBorders: [], labels: [],
+                    terrainData: null, terrainUrl: null,
+                  })
                 }
               }}
               className="btn-ghost text-xs flex items-center gap-1.5 text-slate-500 hover:text-red-400"
@@ -533,6 +711,15 @@ export default function WorldMap() {
           onColorChange={setActiveColor}
           strokeWidth={strokeWidth}
           onStrokeWidthChange={setStrokeWidth}
+          terrainBrush={terrainBrush}
+          onTerrainBrushChange={setTerrainBrush}
+          brushSize={brushSize}
+          onBrushSizeChange={setBrushSize}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          mapStyle={map?.style}
         />
 
         {/* Canvas area */}
@@ -542,7 +729,7 @@ export default function WorldMap() {
           {activeTool === TOOL_TYPES.ERASER && (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 bg-axiom-surface/90 border border-axiom-border rounded-full text-xs text-slate-400 pointer-events-none">
               <Eraser className="w-3 h-3 inline-block mr-1.5 -mt-px" />
-              Click any path, stamp, border, or label to erase it
+              Hold and drag to erase everything the brush touches — lines, stamps, labels, and painted terrain. Pins need a direct click.
             </div>
           )}
 
@@ -558,30 +745,52 @@ export default function WorldMap() {
             onSelect={setSelectedId}
             onPinClick={handlePinClick}
             onPinContextMenu={handlePinContextMenu}
-            onAddPin={pin => wm.addPin(wm.activeMapId, pin)}
+            painter={painter}
+            terrainBrush={terrainBrush}
+            brushSize={brushSize}
+            onTerrainCommit={handleTerrainCommit}
+            onAddPin={pin => { pushUndo(); wm.addPin(wm.activeMapId, pin) }}
             onUpdatePin={(pinId, updates) => {
+              pushUndo()
               wm.updatePin(wm.activeMapId, pinId, updates)
               if (selectedPin?.id === pinId) setSelectedPin(p => ({ ...p, ...updates }))
             }}
             onDeletePin={pinId => {
+              pushUndo()
               wm.deletePin(wm.activeMapId, pinId)
               if (selectedPin?.id === pinId) setSelectedPin(null)
             }}
-            onAddPath={path  => wm.addPath(wm.activeMapId, path)}
-            onDeletePath={id  => wm.deletePath(wm.activeMapId, id)}
-            onAddStamp={stamp => wm.addStamp(wm.activeMapId, stamp)}
-            onDeleteStamp={id => wm.deleteStamp(wm.activeMapId, id)}
-            onAddFactionBorder={b    => wm.addFactionBorder(wm.activeMapId, b)}
-            onUpdateFactionBorder={(id, u) => wm.updateFactionBorder(wm.activeMapId, id, u)}
-            onDeleteFactionBorder={id    => wm.deleteFactionBorder(wm.activeMapId, id)}
-            onAddLabel={label   => wm.addLabel(wm.activeMapId, label)}
-            onUpdateLabel={(id, u) => wm.updateLabel(wm.activeMapId, id, u)}
-            onDeleteLabel={id   => wm.deleteLabel(wm.activeMapId, id)}
+            onAddPath={path  => { pushUndo(); wm.addPath(wm.activeMapId, path) }}
+            onDeletePath={id  => { pushUndo(); wm.deletePath(wm.activeMapId, id) }}
+            onAddStamp={stamp => { pushUndo(); wm.addStamp(wm.activeMapId, stamp) }}
+            onUpdateStamp={(id, u) => { pushUndo(); wm.updateStamp(wm.activeMapId, id, u) }}
+            onDeleteStamp={id => { pushUndo(); wm.deleteStamp(wm.activeMapId, id) }}
+            onAddFactionBorder={b    => { pushUndo(); wm.addFactionBorder(wm.activeMapId, b) }}
+            onUpdateFactionBorder={(id, u) => { pushUndo(); wm.updateFactionBorder(wm.activeMapId, id, u) }}
+            onDeleteFactionBorder={id    => { pushUndo(); wm.deleteFactionBorder(wm.activeMapId, id) }}
+            onAddLabel={label   => { pushUndo(); wm.addLabel(wm.activeMapId, label) }}
+            onUpdateLabel={(id, u) => { pushUndo(); wm.updateLabel(wm.activeMapId, id, u) }}
+            onDeleteLabel={id   => { pushUndo(); wm.deleteLabel(wm.activeMapId, id) }}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center text-slate-600 text-sm">
             No map selected
           </div>
+        )}
+
+        {/* Stamp transform panel */}
+        {selectedStamp && (
+          <StampTransformPanel
+            stamp={selectedStamp}
+            onGestureStart={pushUndo}
+            onChange={updates => wm.updateStamp(wm.activeMapId, selectedStamp.id, updates)}
+            onDelete={() => {
+              pushUndo()
+              wm.deleteStamp(wm.activeMapId, selectedStamp.id)
+              setSelectedId(null)
+            }}
+            onClose={() => setSelectedId(null)}
+          />
         )}
         </div>{/* end canvas area */}
 

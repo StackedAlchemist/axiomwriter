@@ -8,6 +8,7 @@ import { db, storage } from '../firebase/config'
 import { v4 as uuidv4 } from 'uuid'
 import { sanitizeForFirestore }   from '../utils/sanitizeForFirestore'
 import { assertFirestoreSafeSize } from '../utils/firestorePayloadGuard'
+import { ALL_STAMP_TYPES }         from '../components/worldmap/stampLibrary'
 
 export const MAP_TYPES = {
   WORLD:  'world',
@@ -24,6 +25,7 @@ export const MAP_STYLES = [
 
 export const TOOL_TYPES = {
   SELECT:   'select',
+  TERRAIN:  'terrain',
   PEN:      'pen',
   RIVER:    'river',
   ROAD:     'road',
@@ -37,8 +39,21 @@ export const TOOL_TYPES = {
   ERASER:   'eraser',
 }
 
-export const STAMP_TYPES = ['mountain', 'forest', 'desert', 'plains']
+export const STAMP_TYPES = ALL_STAMP_TYPES
 export const PATH_TYPES  = ['pen', 'river', 'road']
+
+// ── Terrain brushes (painted onto the terrain layer) ─────────────────────────
+export const TERRAIN_BRUSHES = [
+  { id: 'water',     label: 'Water',      color: '#5b8fc9' },
+  { id: 'deepwater', label: 'Deep Water', color: '#3a6ba8' },
+  { id: 'sand',      label: 'Sand',       color: '#d4b877' },
+  { id: 'grass',     label: 'Grassland',  color: '#8aa85e' },
+  { id: 'forest',    label: 'Forest',     color: '#5d7a42' },
+  { id: 'rock',      label: 'Rock',       color: '#8d7f6d' },
+  { id: 'snow',      label: 'Snow',       color: '#eee9dc' },
+  { id: 'swamp',     label: 'Swamp',      color: '#6d7f5e' },
+  { id: 'erase',     label: 'Erase Terrain', color: null },
+]
 
 const DEFAULT_MAP = {
   name:            'World Map',
@@ -46,6 +61,8 @@ const DEFAULT_MAP = {
   style:           'parchment',
   backgroundUrl:   null,
   backgroundData:  null,
+  terrainUrl:      null,
+  terrainData:     null,
   parentMapId:     null,
   parentPinId:     null,
   width:           1600,
@@ -63,49 +80,86 @@ const DEFAULT_MAP = {
 const BG_INLINE_LIMIT = 50_000  // 50 KB — small textures/data OK inline
 
 /**
- * Uploads a background data URL to Firebase Storage and returns the download URL.
- * Path: maps/{projectId}/{mapId}/background.png
+ * Uploads an image data URL to Firebase Storage and returns the download URL.
+ * Path: maps/{projectId}/{mapId}/{name}
  */
-async function uploadBackgroundToStorage(projectId, mapId, dataUrl) {
-  const path = `maps/${projectId}/${mapId}/background`
+async function uploadImageToStorage(projectId, mapId, name, dataUrl) {
+  const path = `maps/${projectId}/${mapId}/${name}`
   const sRef = storageRef(storage, path)
-  // dataUrl format: "data:<mime>;base64,<data>"
-  const format = dataUrl.startsWith('data:image/png') ? 'data_url' : 'data_url'
-  await uploadString(sRef, dataUrl, format)
+  await uploadString(sRef, dataUrl, 'data_url')
   const url = await getDownloadURL(sRef)
   return { url, path }
 }
 
+// Image fields that offload to Storage when they exceed the inline limit.
+// dataField holds the raw data URL; urlField holds the Storage download URL.
+// `jpeg: true` allows lossy compression on the downscale fallback (opaque
+// images only — terrain needs its alpha channel, so it stays PNG).
+const IMAGE_FIELDS = [
+  { dataField: 'backgroundData', urlField: 'backgroundUrl', storageName: 'background', jpeg: true },
+  { dataField: 'terrainData',    urlField: 'terrainUrl',    storageName: 'terrain',    jpeg: false },
+]
+
+// When Storage is unavailable, images this size or smaller are stored inline
+// in the Firestore doc (well under the ~1 MB document limit).
+const INLINE_FALLBACK_LIMIT = 200_000
+
+/** Redraws a data URL at a smaller size. Returns a new data URL. */
+function downscaleDataUrl(dataUrl, targetW, targetH, jpeg) {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image()
+    img.onload = () => {
+      const canvas  = document.createElement('canvas')
+      canvas.width  = targetW
+      canvas.height = targetH
+      canvas.getContext('2d').drawImage(img, 0, 0, targetW, targetH)
+      resolve(jpeg ? canvas.toDataURL('image/jpeg', 0.62) : canvas.toDataURL('image/png'))
+    }
+    img.onerror = reject
+    img.src = dataUrl
+  })
+}
+
 /**
- * Converts a map updates object: if backgroundData is large, uploads it to
- * Storage and replaces it with { backgroundUrl, backgroundData: null }.
+ * Converts a map updates object: any large image data URL (background or
+ * painted terrain) is uploaded to Storage and replaced with its download URL.
+ * If Storage is unavailable (not enabled on the project, offline), falls back
+ * to a downscaled inline copy so the write still succeeds.
  * Returns the safe updates object ready for Firestore.
  */
 async function resolveBackground(projectId, mapId, updates) {
-  if (!updates.backgroundData) return updates
+  let safe = updates
 
-  const dataUrl = updates.backgroundData
-  const byteEst = Math.ceil((dataUrl.length * 3) / 4) // base64 → bytes estimate
+  for (const { dataField, urlField, storageName, jpeg } of IMAGE_FIELDS) {
+    const dataUrl = safe[dataField]
+    if (!dataUrl) continue
 
-  if (byteEst <= BG_INLINE_LIMIT) {
-    // Small enough to store inline
-    return updates
-  }
+    const byteEst = Math.ceil((dataUrl.length * 3) / 4) // base64 → bytes estimate
+    if (byteEst <= BG_INLINE_LIMIT) continue // small enough to store inline
 
-  // Too large — upload to Storage
-  try {
-    const { url } = await uploadBackgroundToStorage(projectId, mapId, dataUrl)
-    return {
-      ...updates,
-      backgroundData: null,
-      backgroundUrl:  url,
+    try {
+      const { url } = await uploadImageToStorage(projectId, mapId, storageName, dataUrl)
+      safe = { ...safe, [dataField]: null, [urlField]: url }
+    } catch (err) {
+      console.warn(`[useWorldMap] Storage upload failed for ${storageName} (is Firebase Storage enabled on this project?). Falling back to a downscaled inline copy.`, err)
+      let inlined = null
+      for (const [w, h] of [[800, 450], [560, 315]]) {
+        try {
+          const smaller = await downscaleDataUrl(dataUrl, w, h, jpeg)
+          if (Math.ceil((smaller.length * 3) / 4) <= INLINE_FALLBACK_LIMIT) { inlined = smaller; break }
+        } catch { /* try next size */ }
+      }
+      if (inlined) {
+        safe = { ...safe, [dataField]: inlined, [urlField]: null }
+      } else {
+        console.error(`[useWorldMap] Could not compress ${storageName} enough to inline — dropping it from this write.`)
+        const { [dataField]: _omit, ...rest } = safe
+        safe = rest
+      }
     }
-  } catch (err) {
-    console.error('[useWorldMap] Failed to upload background to Storage — blocking Firestore write to prevent oversized document.', err)
-    // Return without backgroundData so we don't blow up Firestore
-    const { backgroundData: _omit, ...rest } = updates
-    return rest
   }
+
+  return safe
 }
 
 /**
@@ -166,8 +220,8 @@ export function useWorldMap(projectId) {
     const mapId = uuidv4() // generate an ID we can use for Storage path before addDoc
     let resolvedData = { ...data }
 
-    // Handle large background data before writing to Firestore
-    if (resolvedData.backgroundData) {
+    // Handle large image data (background/terrain) before writing to Firestore
+    if (resolvedData.backgroundData || resolvedData.terrainData) {
       resolvedData = await resolveBackground(projectId, mapId, resolvedData)
     }
 
@@ -202,9 +256,9 @@ export function useWorldMap(projectId) {
     saveTimer.current = setTimeout(async () => {
       setSaving(true)
       try {
-        // Handle large background data
+        // Handle large image data (background/terrain)
         let safeUpdates = { ...updates }
-        if (safeUpdates.backgroundData) {
+        if (safeUpdates.backgroundData || safeUpdates.terrainData) {
           safeUpdates = await resolveBackground(projectId, mapId, safeUpdates)
         }
 
@@ -284,6 +338,14 @@ export function useWorldMap(projectId) {
     const map = maps.find(m => m.id === mapId)
     if (!map) return
     persistMap(mapId, { stamps: [...(map.stamps || []), { id: uuidv4(), ...stamp }] })
+  }, [maps, persistMap])
+
+  const updateStamp = useCallback((mapId, stampId, updates) => {
+    const map = maps.find(m => m.id === mapId)
+    if (!map) return
+    persistMap(mapId, {
+      stamps: (map.stamps || []).map(s => s.id === stampId ? { ...s, ...updates } : s),
+    })
   }, [maps, persistMap])
 
   const deleteStamp = useCallback((mapId, stampId) => {
@@ -386,7 +448,7 @@ export function useWorldMap(projectId) {
     persistMap,
     addPin,    updatePin,    deletePin,
     addPath,   deletePath,
-    addStamp,  deleteStamp,
+    addStamp,  updateStamp,  deleteStamp,
     addFactionBorder, updateFactionBorder, deleteFactionBorder,
     addLabel,  updateLabel,  deleteLabel,
     createChildMap,

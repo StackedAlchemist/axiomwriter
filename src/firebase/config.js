@@ -48,4 +48,11 @@ try {
 export { db }
 
 export const storage = getStorage(app)
+
+// Fail fast instead of the SDK default 2-minute retry loop. If the bucket is
+// unreachable (Storage not enabled, offline), uploads reject in seconds and
+// callers can fall back instead of appearing frozen.
+storage.maxOperationRetryTime = 15_000
+storage.maxUploadRetryTime    = 15_000
+
 export default app

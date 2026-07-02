@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { Stage, Layer, Line, Image as KonvaImage, Circle, Text, RegularPolygon, Star, Group, Rect } from 'react-konva'
 import { TOOL_TYPES, STAMP_TYPES, PATH_TYPES } from '../../hooks/useWorldMap'
+import { StampShape } from './stampLibrary'
 import useImage from './useImage'
 
 // ── Pin marker ────────────────────────────────────────────────────────────────
@@ -72,57 +73,25 @@ function LocationPin({ pin, isSelected, onClick, onRightClick, onDragEnd, mapSty
   )
 }
 
-// ── Terrain stamp ─────────────────────────────────────────────────────────────
-function TerrainStamp({ stamp, isSelected, onClick, onDragEnd, mapStyle }) {
-  const schematic = mapStyle === 'schematic'
-  const modern    = mapStyle === 'modern'
-  const colors = {
-    mountain: schematic ? '#4a9fd5' : modern ? '#94a3b8' : '#7a6a5a',
-    forest:   schematic ? '#2ad56a' : modern ? '#4ade80' : '#3a5a2a',
-    desert:   schematic ? '#d5a43a' : modern ? '#fbbf24' : '#c8a44a',
-    plains:   schematic ? '#3ad5a4' : modern ? '#86efac' : '#6a8a4a',
-  }
+// ── Map stamp (vector asset from the stamp library) ───────────────────────────
+function MapStamp({ stamp, isSelected, onClick, onDragEnd, mapStyle }) {
   const scale = stamp.scale || 1
-  const col   = colors[stamp.type] || '#888'
-
-  const shapes = {
-    mountain: (
-      <Group>
-        <Line points={[0, -20 * scale, -14 * scale, 8 * scale, 14 * scale, 8 * scale]} closed fill={col} stroke={col} strokeWidth={1} opacity={0.8} />
-        <Line points={[0, -12 * scale, -6 * scale, 0, 6 * scale, 0]} closed fill="rgba(255,255,255,0.4)" stroke="none" />
-      </Group>
-    ),
-    forest: (
-      <Group>
-        <Circle radius={10 * scale} fill={col} opacity={0.8} />
-        <Circle x={-8 * scale} y={4 * scale} radius={7 * scale} fill={col} opacity={0.7} />
-        <Circle x={8 * scale} y={4 * scale} radius={7 * scale} fill={col} opacity={0.7} />
-      </Group>
-    ),
-    desert: (
-      <Group>
-        <Line points={[-14 * scale, 4 * scale, 0, -10 * scale, 14 * scale, 4 * scale, 6 * scale, 10 * scale, -6 * scale, 10 * scale]} closed fill={col} opacity={0.7} />
-      </Group>
-    ),
-    plains: (
-      <Group>
-        {[-10, 0, 10].map(dx => (
-          <Line key={dx} points={[dx * scale - 6, 4 * scale, dx * scale, -8 * scale, dx * scale + 6, 4 * scale]} closed fill={col} opacity={0.6} />
-        ))}
-      </Group>
-    ),
-  }
-
   return (
     <Group
       x={stamp.x}
       y={stamp.y}
+      rotation={stamp.rotation || 0}
+      scaleX={scale * (stamp.flipX ? -1 : 1)}
+      scaleY={scale}
       draggable
       onClick={onClick}
+      onTap={onClick}
       onDragEnd={e => onDragEnd(e.target.x(), e.target.y())}
     >
-      {isSelected && <Circle radius={20 * scale} fill="rgba(255,215,0,0.15)" stroke="rgba(255,215,0,0.5)" strokeWidth={1} />}
-      {shapes[stamp.type] || shapes.mountain}
+      {isSelected && (
+        <Circle radius={26} fill="rgba(255,215,0,0.12)" stroke="rgba(255,215,0,0.5)" strokeWidth={1.5 / scale} />
+      )}
+      <StampShape type={stamp.type} mapStyle={mapStyle} />
     </Group>
   )
 }
@@ -147,6 +116,7 @@ function FactionBorder({ border, isSelected, onClick }) {
       stroke={isSelected ? '#ffd700' : hex}
       strokeWidth={isSelected ? 2.5 : 1.5}
       dash={[8, 4]}
+      hitStrokeWidth={14}
       onClick={onClick}
     />
   )
@@ -189,7 +159,12 @@ export default function MapCanvas({
   onAddPath,
   onDeletePath,
   onAddStamp,
+  onUpdateStamp,
   onDeleteStamp,
+  painter,
+  terrainBrush,
+  brushSize,
+  onTerrainCommit,
   onAddFactionBorder,
   onUpdateFactionBorder,
   onDeleteFactionBorder,
@@ -211,6 +186,9 @@ export default function MapCanvas({
   const [factionDraft, setFactionDraft] = useState(null) // { points: [[x,y]] }
   const [labelDraft, setLabelDraft]   = useState(null)   // { x, y }
   const [labelInput, setLabelInput]   = useState('')
+  const painting        = useRef(false)
+  const terrainNodeRef  = useRef(null)
+  const brushCursorRef  = useRef(null)
 
   // Resize stage to container
   useEffect(() => {
@@ -229,6 +207,21 @@ export default function MapCanvas({
 
   const mapW = map?.width  || 1600
   const mapH = map?.height || 900
+
+  // Redraw the terrain node when the paint engine replaces canvas content
+  // (initial load, undo, redo) — the canvas element reference never changes.
+  useEffect(() => {
+    terrainNodeRef.current?.getLayer()?.batchDraw()
+  }, [painter?.version])
+
+  // Hide the brush cursor when leaving the terrain/eraser tools
+  useEffect(() => {
+    const isBrushTool = activeTool === TOOL_TYPES.TERRAIN || activeTool === TOOL_TYPES.ERASER
+    if (!isBrushTool && brushCursorRef.current) {
+      brushCursorRef.current.visible(false)
+      brushCursorRef.current.getLayer()?.batchDraw()
+    }
+  }, [activeTool])
 
   // World-space position from stage event
   function stagePos(e) {
@@ -259,8 +252,65 @@ export default function MapCanvas({
     })
   }
 
+  // ── Eraser sweep: delete objects the brush circle passes over ───────────────
+  // Deletes at most one object per collection per call — each delete rebuilds
+  // that collection from current state, so batching within one event would
+  // resurrect earlier deletions from a stale array.
+  function eraseObjectsAt(x, y, r) {
+    if (!map) return
+
+    const hitPath = (map.paths || []).find(p => {
+      const pts = p.points || []
+      for (let i = 0; i < pts.length - 1; i += 2) {
+        if (Math.hypot(pts[i] - x, pts[i + 1] - y) < r) return true
+      }
+      return false
+    })
+    if (hitPath) onDeletePath(hitPath.id)
+
+    const hitStamp = (map.stamps || []).find(s =>
+      Math.hypot(s.x - x, s.y - y) < r + 22 * (s.scale || 1)
+    )
+    if (hitStamp) onDeleteStamp(hitStamp.id)
+
+    const hitLabel = (map.labels || []).find(l => {
+      const halfW = ((l.text?.length || 4) * (l.fontSize || 14) * 0.6) / 2
+      return Math.hypot(l.x + halfW - x, l.y - y) < r + halfW * 0.6
+    })
+    if (hitLabel) onDeleteLabel(hitLabel.id)
+
+    const hitBorder = (map.factionBorders || []).find(b => {
+      const pts = b.points || []
+      for (let i = 0; i < pts.length - 1; i += 2) {
+        if (Math.hypot(pts[i] - x, pts[i + 1] - y) < r) return true
+      }
+      return false
+    })
+    if (hitBorder) onDeleteFactionBorder(hitBorder.id)
+
+    // Pins are deliberately NOT sweep-erased — they carry lore links and
+    // scene pins. Deleting a pin stays an explicit click.
+  }
+
   // ── Mouse events ─────────────────────────────────────────────────────────────
   function handleMouseDown(e) {
+    // Eraser starts a sweep stroke no matter what's under the cursor:
+    // dragging erases painted terrain AND any object the brush passes over.
+    // (A simple click on an object still deletes it via the object's own
+    // click handler.)
+    if (activeTool === TOOL_TYPES.ERASER) {
+      onSelect(null)
+      const { x, y } = stagePos(e)
+      painting.current = true
+      if (painter?.canvas) {
+        painter.strokeStart()
+        painter.paint(x, y, { id: 'erase' }, brushSize || 40)
+        terrainNodeRef.current?.getLayer()?.batchDraw()
+      }
+      eraseObjectsAt(x, y, brushSize || 40)
+      return
+    }
+
     const isStage      = e.target === e.target.getStage()
     const isBackground = e.target.name() === 'background'
     if (!isStage && !isBackground) {
@@ -268,6 +318,14 @@ export default function MapCanvas({
     }
     onSelect(null)
     const { x, y } = stagePos(e)
+
+    if (activeTool === TOOL_TYPES.TERRAIN && painter) {
+      painting.current = true
+      painter.strokeStart()
+      painter.paint(x, y, terrainBrush, brushSize || 40)
+      terrainNodeRef.current?.getLayer()?.batchDraw()
+      return
+    }
 
     if (activeTool === TOOL_TYPES.PEN || activeTool === TOOL_TYPES.RIVER || activeTool === TOOL_TYPES.ROAD) {
       setDrawing(true)
@@ -297,12 +355,37 @@ export default function MapCanvas({
   }
 
   function handleMouseMove(e) {
+    // Terrain/eraser brush cursor follows the pointer (imperative — avoids re-renders)
+    const isBrushTool = activeTool === TOOL_TYPES.TERRAIN || activeTool === TOOL_TYPES.ERASER
+    if (isBrushTool && brushCursorRef.current) {
+      const { x, y } = stagePos(e)
+      brushCursorRef.current.position({ x, y })
+      brushCursorRef.current.visible(true)
+      if (painting.current && painter) {
+        const brush = activeTool === TOOL_TYPES.ERASER ? { id: 'erase' } : terrainBrush
+        painter.paint(x, y, brush, brushSize || 40)
+      }
+      if (painting.current && activeTool === TOOL_TYPES.ERASER) {
+        eraseObjectsAt(x, y, brushSize || 40)
+      }
+      brushCursorRef.current.getLayer()?.batchDraw()
+      terrainNodeRef.current?.getLayer()?.batchDraw()
+      return
+    }
+
     if (!drawing) return
     const { x, y } = stagePos(e)
     setCurrentPath(prev => [...prev, x, y])
   }
 
   function handleMouseUp() {
+    if (painting.current && painter) {
+      painting.current = false
+      const dataUrl = painter.strokeEnd()
+      if (dataUrl) onTerrainCommit?.(dataUrl)
+      return
+    }
+
     if (drawing && currentPath.length >= 4) {
       const pathColors = {
         [TOOL_TYPES.PEN]:   activeColor || (map?.style === 'schematic' ? '#3a9fd5' : '#5a3a1a'),
@@ -360,6 +443,7 @@ export default function MapCanvas({
   // ── Cursor style ──────────────────────────────────────────────────────────
   const cursors = {
     [TOOL_TYPES.SELECT]:  'default',
+    [TOOL_TYPES.TERRAIN]: 'crosshair',
     [TOOL_TYPES.PEN]:     'crosshair',
     [TOOL_TYPES.RIVER]:   'crosshair',
     [TOOL_TYPES.ROAD]:    'crosshair',
@@ -418,6 +502,10 @@ export default function MapCanvas({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleMouseDown}
+        onTouchMove={handleMouseMove}
+        onTouchEnd={handleMouseUp}
         onDblClick={handleDblClick}
       >
         {/* Layer 0: Background + Paths (merged — background renders first) */}
@@ -443,6 +531,19 @@ export default function MapCanvas({
             />
           )}
 
+          {/* Painted terrain (offscreen canvas from the terrain paint engine) */}
+          {painter?.canvas && (
+            <KonvaImage
+              ref={terrainNodeRef}
+              image={painter.canvas}
+              width={mapW}
+              height={mapH}
+              x={0}
+              y={0}
+              listening={false}
+            />
+          )}
+
           {/* Paths (coastlines, rivers, roads) */}
           {(map?.paths || []).map(path => (
             <Line
@@ -455,6 +556,7 @@ export default function MapCanvas({
               lineCap="round"
               lineJoin="round"
               opacity={0.85}
+              hitStrokeWidth={14}
               onClick={() => {
                 if (activeTool === TOOL_TYPES.ERASER) onDeletePath(path.id)
                 else onSelect(path.id)
@@ -505,7 +607,7 @@ export default function MapCanvas({
         <Layer>
           {/* Stamps */}
           {(map?.stamps || []).map(stamp => (
-            <TerrainStamp
+            <MapStamp
               key={stamp.id}
               stamp={stamp}
               isSelected={selectedId === stamp.id}
@@ -514,7 +616,7 @@ export default function MapCanvas({
                 if (activeTool === TOOL_TYPES.ERASER) onDeleteStamp(stamp.id)
                 else onSelect(stamp.id)
               }}
-              onDragEnd={(x, y) => onUpdatePin && (() => {})()} // stamps use separate update
+              onDragEnd={(x, y) => onUpdateStamp?.(stamp.id, { x, y })}
             />
           ))}
 
@@ -556,6 +658,19 @@ export default function MapCanvas({
               onDragEnd={(x, y) => onUpdatePin(pin.id, { x, y })}
             />
           ))}
+
+          {/* Terrain/eraser brush cursor (positioned imperatively on mousemove) */}
+          {(activeTool === TOOL_TYPES.TERRAIN || activeTool === TOOL_TYPES.ERASER) && (
+            <Circle
+              ref={brushCursorRef}
+              radius={brushSize || 40}
+              stroke={activeTool === TOOL_TYPES.ERASER ? 'rgba(255,120,120,0.9)' : 'rgba(255,255,255,0.8)'}
+              strokeWidth={1.5 / scale}
+              dash={[6 / scale, 4 / scale]}
+              listening={false}
+              visible={false}
+            />
+          )}
         </Layer>
       </Stage>
     </div>

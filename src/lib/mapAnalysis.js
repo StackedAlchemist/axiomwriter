@@ -103,7 +103,9 @@ export function generateProceduralBackground(style, width = 1600, height = 900) 
     default:           drawParchment(ctx, width, height)
   }
 
-  return canvas.toDataURL('image/png')
+  // JPEG keeps procedural backgrounds ~10× smaller than PNG (they're opaque,
+  // so no alpha is lost) — faster uploads and cheaper storage.
+  return canvas.toDataURL('image/jpeg', 0.85)
 }
 
 // ── Parchment style ───────────────────────────────────────────────────────────
