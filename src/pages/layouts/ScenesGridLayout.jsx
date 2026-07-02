@@ -85,8 +85,20 @@ export default function ScenesGridLayout({ structure, characters, onOpenScene, p
           })}
 
           {displayChars.length === 0 && (
-            <div className="px-4 py-3 text-xs text-slate-700 italic">
-              No characters yet — add them in the Characters page
+            <div className="px-4 py-2 flex items-center gap-3 flex-wrap">
+              <span className="text-xs text-slate-600 italic">No characters yet</span>
+              <button
+                onClick={() => navigate(`/projects/${projectId}/characters`, { state: { openImport: true } })}
+                className="px-2.5 py-1 text-xs rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-400 hover:bg-teal-500/20 transition-all"
+              >
+                Detect from manuscript
+              </button>
+              <button
+                onClick={() => navigate(`/projects/${projectId}/characters`)}
+                className="px-2.5 py-1 text-xs rounded-lg bg-axiom-surface border border-axiom-border text-slate-400 hover:border-axiom-border-light hover:text-slate-200 transition-all"
+              >
+                Add manually
+              </button>
             </div>
           )}
         </div>

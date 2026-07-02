@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Users, Search, LayoutGrid, List,
   FileText, Loader2, X, Check, Zap, Sparkles, MapPin, Package,
@@ -49,28 +49,52 @@ function stripPossessive(w) {
 function extractCandidateNames(htmlContent) {
   const text = htmlContent.replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ')
   const sentences = text.split(/(?<=[.!?])\s+/)
-  const counts = {} // root → { count, sample }
+  const counts = {} // unigram root → { count, sample }
+  const pairs  = {} // "First Last"  → { count, sample }
+
+  // Returns the cleaned name token, or null if the word isn't name-shaped
+  function cleanToken(word) {
+    let clean = word.replace(/[^A-Za-z'’-]/g, '')
+    if (clean.length < 2) return null
+    if (!/^[A-Z]/.test(clean)) return null
+    // Drop ALL-CAPS acronyms (HUD, POV, AI)
+    if (/^[A-Z][A-Z]+$/.test(clean)) return null
+    clean = stripPossessive(clean)
+    if (clean.length < 2) return null
+    // Drop contractions: a remaining apostrophe followed by a lowercase letter
+    // (I'm, we're, don't) — keeps apostrophe names like O'Brien (uppercase after ').
+    if (/['’][a-z]/.test(clean)) return null
+    return clean
+  }
 
   sentences.forEach(sentence => {
     const trimmed = sentence.trim()
     if (!trimmed) return
-    const words = trimmed.split(/\s+/)
-    // Skip the first word (start-of-sentence capitalization is not a signal)
-    words.slice(1).forEach(word => {
-      let clean = word.replace(/[^A-Za-z'’-]/g, '')
-      if (clean.length < 2) return
-      if (!/^[A-Z]/.test(clean)) return
-      // Drop ALL-CAPS acronyms (HUD, POV, AI)
-      if (/^[A-Z][A-Z]+$/.test(clean)) return
-      clean = stripPossessive(clean)
-      if (clean.length < 2) return
-      // Drop contractions: a remaining apostrophe followed by a lowercase letter
-      // (I'm, we're, don't) — keeps apostrophe names like O'Brien (uppercase after ').
-      if (/['’][a-z]/.test(clean)) return
-      if (COMMON_WORDS.has(clean)) return
+    const words   = trimmed.split(/\s+/)
+    const cleaned = words.map(cleanToken)
+
+    // Unigrams: skip the first word (start-of-sentence capitalization is not a signal)
+    cleaned.forEach((clean, i) => {
+      if (i === 0 || !clean || COMMON_WORDS.has(clean)) return
       if (!counts[clean]) counts[clean] = { count: 0, sample: trimmed.slice(0, 160) }
       counts[clean].count += 1
     })
+
+    // Bigrams: two adjacent capitalized words read as "First Last" — a full
+    // name (or a multi-word place, which the AI pass sorts out). Sentence
+    // start is allowed here; two caps in a row is signal enough.
+    for (let i = 0; i < cleaned.length - 1; i++) {
+      const a = cleaned[i], b = cleaned[i + 1]
+      if (!a || !b) continue
+      if (COMMON_WORDS.has(a) || COMMON_WORDS.has(b)) continue
+      // No pairing across clause boundaries ("...saw Kael. Rhyse said...")
+      if (/[,.;:!?…]['"’”)\]]*$/.test(words[i])) continue
+      // Possessives don't pair ("Kael's Toolbox" is not a full name)
+      if (/['’]s?$/i.test(words[i].replace(/[^A-Za-z'’]/g, ''))) continue
+      const key = `${a} ${b}`
+      if (!pairs[key]) pairs[key] = { count: 0, sample: trimmed.slice(0, 160) }
+      pairs[key].count += 1
+    }
   })
 
   // Layer 1 plural merge: collapse "Frames" into "Frame" when the singular also
@@ -86,11 +110,45 @@ function extractCandidateNames(htmlContent) {
     }
   })
 
-  return Object.entries(counts)
-    .filter(([, v]) => v.count >= 2)
+  // ── Full-name assembly ──────────────────────────────────────────────────────
+  // "Kael" + "Kael Rhyse" are one person: the full name becomes canonical and
+  // the standalone first/last name folds in as an alias. A unigram only folds
+  // when exactly ONE detected pair contains it (unambiguous ownership).
+  const wordOwners = {} // word → Set of pair keys containing it
+  Object.keys(pairs).forEach(key => {
+    key.split(' ').forEach(w => {
+      if (!wordOwners[w]) wordOwners[w] = new Set()
+      wordOwners[w].add(key)
+    })
+  })
+
+  const results = {}
+  Object.entries(pairs).forEach(([key, v]) => {
+    results[key] = { count: v.count, sample: v.sample, aliases: [] }
+  })
+
+  Object.entries(counts).forEach(([word, v]) => {
+    const owners = wordOwners[word]
+    if (owners && owners.size === 1) {
+      const key = [...owners][0]
+      results[key].count += v.count
+      results[key].aliases.push(word)
+      delete counts[word]
+    }
+  })
+
+  // Pairs too rare even after folding are noise; standalone names need 2+ hits
+  Object.keys(results).forEach(k => { if (results[k].count < 2) delete results[k] })
+  Object.entries(counts).forEach(([word, v]) => {
+    if (v.count >= 2 && !results[word]) {
+      results[word] = { count: v.count, sample: v.sample, aliases: [] }
+    }
+  })
+
+  return Object.entries(results)
     .sort(([, a], [, b]) => b.count - a.count)
     .slice(0, 40)
-    .map(([name, v]) => ({ name, count: v.count, sample: v.sample }))
+    .map(([name, v]) => ({ name, count: v.count, sample: v.sample, aliases: v.aliases }))
 }
 
 // ── Import from Manuscript Modal ──────────────────────────────────────────────
@@ -140,7 +198,7 @@ function ImportFromManuscriptModal({ projectId, existingNames, existingLoreTitle
         if (buckets) {
           const ppl = buckets.persons
             .filter(n => byName.has(n))
-            .map(n => ({ name: n, count: byName.get(n).count }))
+            .map(n => ({ name: n, count: byName.get(n).count, aliases: byName.get(n).aliases || [] }))
             .sort((a, b) => b.count - a.count)
           const lore = [
             ...buckets.locations.map(n => ({ name: n, type: 'location' })),
@@ -151,7 +209,7 @@ function ImportFromManuscriptModal({ projectId, existingNames, existingLoreTitle
           setAiUsed(true)
         } else {
           // Graceful fallback — show the locally filtered survivors as people
-          setPersons(survivors.map(c => ({ name: c.name, count: c.count })))
+          setPersons(survivors.map(c => ({ name: c.name, count: c.count, aliases: c.aliases || [] })))
           setLoreItems([])
           setAiUsed(false)
         }
@@ -178,7 +236,8 @@ function ImportFromManuscriptModal({ projectId, existingNames, existingLoreTitle
     setCreating(true)
     try {
       for (const name of selChars) {
-        await onCreate({ name, role: 'supporting', importance: 1 })
+        const person = persons.find(p => p.name === name)
+        await onCreate({ name, aliases: person?.aliases || [], role: 'supporting', importance: 1 })
       }
       for (const name of selLore) {
         const item = loreItems.find(l => l.name === name)
@@ -250,12 +309,13 @@ function ImportFromManuscriptModal({ projectId, existingNames, existingLoreTitle
                     <span className="text-[10px] text-slate-600">→ Cast</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {persons.map(({ name, count }) => {
+                    {persons.map(({ name, count, aliases }) => {
                       const on = selChars.has(name)
                       return (
                         <button
                           key={name}
                           onClick={() => toggleChar(name)}
+                          title={aliases?.length ? `Also appears as: ${aliases.join(', ')}` : undefined}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-all ${
                             on ? 'bg-teal-500/15 border-teal-500/30 text-teal-300'
                                : 'bg-axiom-surface2 border-axiom-border text-slate-400 hover:border-axiom-border-light hover:text-slate-200'
@@ -263,6 +323,9 @@ function ImportFromManuscriptModal({ projectId, existingNames, existingLoreTitle
                         >
                           {on && <Check className="w-3 h-3" />}
                           {name}
+                          {aliases?.length > 0 && (
+                            <span className="text-[10px] text-slate-500 italic">aka {aliases.join(', ')}</span>
+                          )}
                           <span className="text-[10px] text-slate-600">{count}</span>
                         </button>
                       )
@@ -370,6 +433,16 @@ export default function Characters() {
   const [viewMode,       setViewMode]       = useState('grid')   // 'grid' | 'list'
   const [showCreate,     setShowCreate]     = useState(false)
   const [showImport,     setShowImport]     = useState(false)
+  const location = useLocation()
+
+  // "Detect from manuscript" shortcuts elsewhere in the app land here with
+  // navigation state asking for the import modal to open immediately.
+  useEffect(() => {
+    if (location.state?.openImport) {
+      setShowImport(true)
+      window.history.replaceState({}, '') // don't re-open on refresh/back
+    }
+  }, [location.state])
   const [activeTab,      setActiveTab]      = useState('cast')   // 'cast' | 'momentum'
   const [selectedCharId, setSelectedCharId] = useState(null)     // for history graph
 
