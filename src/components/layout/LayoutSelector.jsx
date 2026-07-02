@@ -6,7 +6,7 @@ export const LAYOUTS = [
   {
     id: 'linear',
     name: 'Linear',
-    description: 'Sidebar + editor',
+    description: 'The classic writing view — your chapter & scene list beside the editor.',
     thumb: (
       <svg viewBox="0 0 44 30" className="w-11 h-[30px]">
         <rect x="0"  y="0" width="13" height="30" rx="2" fill="currentColor" opacity="0.35"/>
@@ -21,7 +21,7 @@ export const LAYOUTS = [
   {
     id: 'grid',
     name: 'Scene Grid',
-    description: 'Characters × scenes',
+    description: 'A table of every scene — see which characters appear where at a glance.',
     thumb: (
       <svg viewBox="0 0 44 30" className="w-11 h-[30px]">
         <rect x="0"  y="0" width="44" height="7" rx="1" fill="currentColor" opacity="0.3"/>
@@ -38,7 +38,7 @@ export const LAYOUTS = [
   {
     id: 'threads',
     name: 'Threads',
-    description: 'Plot threads × chapters',
+    description: 'Follow each plot thread across chapters and spot the ones you dropped.',
     thumb: (
       <svg viewBox="0 0 44 30" className="w-11 h-[30px]">
         <rect x="0"  y="0" width="9" height="30" rx="1" fill="currentColor" opacity="0.3"/>
@@ -54,7 +54,7 @@ export const LAYOUTS = [
   {
     id: 'corkboard',
     name: 'Corkboard',
-    description: 'Scene cards overview',
+    description: 'Every scene as an index card — rearrange and see your story\'s shape.',
     thumb: (
       <svg viewBox="0 0 44 30" className="w-11 h-[30px]">
         <rect x="0"  y="0"  width="13" height="12" rx="2" fill="currentColor" opacity="0.45"/>
@@ -69,7 +69,7 @@ export const LAYOUTS = [
   {
     id: 'timeline',
     name: 'Timeline',
-    description: 'Characters × time',
+    description: 'Where each character is over the course of the story — catch timeline gaps.',
     thumb: (
       <svg viewBox="0 0 44 30" className="w-11 h-[30px]">
         <rect x="0"  y="0"  width="44" height="5" rx="1" fill="currentColor" opacity="0.3"/>
@@ -118,22 +118,26 @@ export default function LayoutSelector({ activeLayout, onSelect }) {
       style={{ top: pos.top, left: pos.left }}
     >
       <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider px-2 pb-2">View Layout</p>
-      <div className="grid grid-cols-5 gap-1">
+      <div className="flex flex-col gap-1">
         {LAYOUTS.map(layout => (
           <button
             key={layout.id}
             onClick={() => { onSelect(layout.id); setOpen(false) }}
             className={`
-              flex flex-col items-center gap-1.5 p-2 rounded-lg transition-all
+              flex items-center gap-3 p-2 rounded-lg transition-all text-left
               ${activeLayout === layout.id
                 ? 'bg-gold-500/15 border border-gold-500/30 text-gold-400'
                 : 'hover:bg-axiom-surface2 border border-transparent text-slate-500 hover:text-slate-300'
               }
             `}
-            title={layout.description}
           >
-            {layout.thumb}
-            <span className="text-[9px] font-medium leading-none whitespace-nowrap">{layout.name}</span>
+            <div className="flex-shrink-0">{layout.thumb}</div>
+            <div className="min-w-0">
+              <span className="block text-xs font-semibold leading-tight">{layout.name}</span>
+              <span className={`block text-[10px] leading-snug mt-0.5 ${activeLayout === layout.id ? 'text-gold-400/70' : 'text-slate-600'}`}>
+                {layout.description}
+              </span>
+            </div>
           </button>
         ))}
       </div>

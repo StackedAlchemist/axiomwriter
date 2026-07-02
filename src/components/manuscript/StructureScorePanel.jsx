@@ -1,6 +1,12 @@
-import React from 'react'
-import { X, Loader2 } from 'lucide-react'
+import React, { useState } from 'react'
+import { X, Loader2, Check, ChevronDown, ChevronRight } from 'lucide-react'
 import { CHECK_LABELS, CHECK_DESCRIPTIONS } from '../../lib/devEditEngine'
+
+const SEVERITY_DOT = {
+  warning: 'bg-gold-400',
+  info:    'bg-sky-400',
+  error:   'bg-red-400',
+}
 
 function timeAgo(date) {
   if (!date) return null
@@ -24,11 +30,22 @@ export default function StructureScorePanel({
   suggestions,
   lastScanAt,
   onRunScan,
+  onOpenFinding,
   onClose,
   style,
 }) {
   const cfg = scoreConfig(healthScore)
   const lastLabel = timeAgo(lastScanAt)
+  const hasScan = healthScore != null
+  const [expanded, setExpanded] = useState(null) // check type whose findings are open
+
+  // Group active findings by check type
+  const findingsByType = {}
+  ;(suggestions || []).forEach(f => {
+    if (!findingsByType[f.type]) findingsByType[f.type] = []
+    findingsByType[f.type].push(f)
+  })
+  const issueTypeCount = Object.keys(findingsByType).length
 
   return (
     <div
@@ -95,21 +112,67 @@ export default function StructureScorePanel({
         </div>
       </div>
 
-      {/* What's checked — scrollable */}
+      {/* Results — scrollable */}
       <div className="flex-1 overflow-y-auto px-4 py-3">
-        <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest mb-3">
-          What's analyzed
+        <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest mb-1">
+          {hasScan ? 'Results by check' : "What's analyzed"}
         </p>
-        <div className="space-y-3">
-          {Object.entries(CHECK_LABELS).map(([key, label]) => (
-            <div key={key} className="flex gap-2.5">
-              <div className="w-0.5 flex-shrink-0 rounded-full bg-axiom-border mt-1" />
-              <div>
-                <p className="text-xs text-slate-300 font-medium leading-tight">{label}</p>
-                <p className="text-[10px] text-slate-600 leading-relaxed mt-0.5">{CHECK_DESCRIPTIONS[key]}</p>
+        {hasScan && (
+          <p className="text-[10px] text-slate-600 leading-relaxed mb-3">
+            Score starts at 100 and drops 12 points for each check that finds issues
+            {issueTypeCount > 0 ? ` — ${issueTypeCount} check${issueTypeCount !== 1 ? 's' : ''} flagged something below.` : '.'}
+            {' '}Tap a finding to see where it is and how to fix it.
+          </p>
+        )}
+        <div className="space-y-2">
+          {Object.entries(CHECK_LABELS).map(([key, label]) => {
+            const found  = findingsByType[key] || []
+            const isOpen = expanded === key
+            return (
+              <div key={key} className={`rounded-lg border ${found.length ? 'border-gold-500/20 bg-gold-500/5' : 'border-axiom-border'}`}>
+                <button
+                  onClick={() => setExpanded(isOpen ? null : key)}
+                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left"
+                >
+                  {hasScan ? (
+                    found.length ? (
+                      <span className="text-[10px] font-bold text-gold-400 bg-gold-500/15 rounded-full w-[18px] h-[18px] flex-shrink-0 flex items-center justify-center">
+                        {found.length}
+                      </span>
+                    ) : (
+                      <Check className="w-3.5 h-3.5 text-teal-500 flex-shrink-0" />
+                    )
+                  ) : (
+                    <div className="w-0.5 h-3.5 flex-shrink-0 rounded-full bg-axiom-border" />
+                  )}
+                  <span className={`text-xs font-medium leading-tight flex-1 ${found.length ? 'text-slate-200' : 'text-slate-400'}`}>
+                    {label}
+                  </span>
+                  {hasScan && !found.length && <span className="text-[9px] text-teal-600">Clear</span>}
+                  {isOpen ? <ChevronDown className="w-3 h-3 text-slate-600" /> : <ChevronRight className="w-3 h-3 text-slate-700" />}
+                </button>
+
+                {isOpen && (
+                  <div className="px-2.5 pb-2.5 space-y-1.5">
+                    <p className="text-[10px] text-slate-600 leading-relaxed">{CHECK_DESCRIPTIONS[key]}</p>
+                    {found.map(f => (
+                      <button
+                        key={f.id}
+                        onClick={() => onOpenFinding?.(f)}
+                        className="w-full flex items-start gap-2 px-2 py-1.5 rounded-md bg-axiom-surface2/60 hover:bg-axiom-surface2 border border-transparent hover:border-gold-500/20 text-left transition-colors"
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${SEVERITY_DOT[f.severity] || 'bg-slate-500'}`} />
+                        <span className="text-[11px] text-slate-300 leading-snug">{f.message}</span>
+                      </button>
+                    ))}
+                    {hasScan && !found.length && (
+                      <p className="text-[10px] text-teal-600/80">No issues found by this check.</p>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 

@@ -754,6 +754,7 @@ export default function ProjectDetail() {
           suggestions={devEditSuggestions}
           lastScanAt={devEditLastScanAt}
           onRunScan={() => { devEditRunManualScan(ms.structure); setShowStructurePanel(false) }}
+          onOpenFinding={finding => { setDevEditFinding(finding); setShowStructurePanel(false) }}
           onClose={() => setShowStructurePanel(false)}
         />
       )}
@@ -875,14 +876,21 @@ export default function ProjectDetail() {
 
 function EmptyEditorState({ hasSidebar, onToggleSidebar }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-slate-600">
-      {!hasSidebar && (
-        <button onClick={onToggleSidebar} className="btn-ghost text-xs mb-6">
-          Show manuscript
-        </button>
-      )}
-      <p className="font-serif text-lg text-slate-500 mb-1">Select a scene to begin writing</p>
-      <p className="text-sm text-slate-700">Choose a scene from the sidebar, or add a new one.</p>
+    <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+      {/* Scrim card keeps this readable over any writing-environment backdrop */}
+      <div className="px-8 py-6 rounded-2xl bg-black/45 backdrop-blur-sm border border-white/10 shadow-lg">
+        {!hasSidebar && (
+          <button onClick={onToggleSidebar} className="btn-ghost text-xs mb-4">
+            Show manuscript
+          </button>
+        )}
+        <p className="font-serif text-lg text-slate-100 mb-1" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+          Select a scene to begin writing
+        </p>
+        <p className="text-sm text-slate-300/90" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+          Choose a scene from the sidebar, or add a new one.
+        </p>
+      </div>
     </div>
   )
 }
