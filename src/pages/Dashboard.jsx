@@ -108,8 +108,10 @@ export default function Dashboard() {
   const statCards = [
     { icon: BookOpen,   label: 'Projects',      value: statsLoading ? null : String(activeProjects.length), sub: 'Active' },
     { icon: Feather,    label: 'Words Written',  value: statsLoading ? null : formatWords(totalWords),        sub: 'All time' },
-    { icon: Clock,      label: 'Streak',    value: streak    === null ? null : streak    === 0 ? '—' : `${streak}d`,   sub: 'Daily writing' },
-    { icon: TrendingUp, label: 'This Week', value: weekWords === null ? null : weekWords === 0 ? '—' : formatWords(weekWords), sub: 'Words written' },
+    { icon: Clock,      label: 'Streak',    value: streak    === null ? null : streak === 0 ? '0 days' : `${streak}d`,
+      sub: streak === 0 ? 'Write today to start a streak' : 'Daily writing' },
+    { icon: TrendingUp, label: 'This Week', value: weekWords === null ? null : formatWords(weekWords),
+      sub: weekWords === 0 ? 'Words this week — the page is waiting' : 'Words written' },
   ]
 
   return (

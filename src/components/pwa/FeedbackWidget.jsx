@@ -5,7 +5,7 @@
  * AND optionally emailed via EmailJS (configure VITE_EMAILJS_* env vars).
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   MessageSquare, X, Send, Loader2, Check,
   Bug, Lightbulb, HelpCircle,
@@ -37,6 +37,30 @@ export default function FeedbackWidget() {
   const [sending, setSending] = useState(false)
   const [sent,    setSent]    = useState(false)
   const [error,   setError]   = useState('')
+  const [typing,  setTyping]  = useState(false)
+
+  // Auto-hide the trigger while the user is typing anywhere outside the hub
+  // (editor, forms) — the bubble was overlapping content and the mobile
+  // keyboard. Focusing fields inside the hub itself must not hide it.
+  useEffect(() => {
+    function isEditable(el) {
+      return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+    }
+    function onFocusIn(e) {
+      if (e.target.closest?.('[data-feedback-hub]')) return
+      if (isEditable(e.target)) setTyping(true)
+    }
+    function onFocusOut(e) {
+      if (e.target.closest?.('[data-feedback-hub]')) return
+      if (isEditable(e.target)) setTyping(false)
+    }
+    document.addEventListener('focusin',  onFocusIn)
+    document.addEventListener('focusout', onFocusOut)
+    return () => {
+      document.removeEventListener('focusin',  onFocusIn)
+      document.removeEventListener('focusout', onFocusOut)
+    }
+  }, [])
 
   function reset() {
     setBugForm(INITIAL_BUG)
@@ -99,17 +123,20 @@ export default function FeedbackWidget() {
 
   return (
     <>
-      {/* Floating trigger */}
+      {/* Floating trigger — hides while typing so it never covers the editor */}
       <button
+        data-feedback-hub
         onClick={() => setOpen(o => !o)}
-        className="
+        className={`
           fixed bottom-20 right-4 z-40 sm:bottom-5 sm:right-5
           w-11 h-11 rounded-full
           bg-axiom-surface border border-axiom-border
           flex items-center justify-center
           shadow-lg hover:border-gold-500/40 hover:bg-axiom-surface2
           transition-all duration-200 group
-        "
+          ${typing && !open ? 'opacity-0 pointer-events-none translate-y-2' : 'opacity-100'}
+        `}
+        style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
         title="Feedback Hub"
         aria-label="Open Feedback Hub"
       >
@@ -128,11 +155,15 @@ export default function FeedbackWidget() {
 
       {/* Feedback drawer */}
       {open && (
-        <div className="
-          fixed bottom-20 right-5 z-40
-          w-80 bg-axiom-surface border border-axiom-border
-          rounded-2xl shadow-2xl animate-slide-up overflow-hidden
-        ">
+        <div
+          data-feedback-hub
+          className="
+            fixed bottom-32 right-4 sm:bottom-20 sm:right-5 z-40
+            w-[calc(100vw-2rem)] max-w-[20rem] bg-axiom-surface border border-axiom-border
+            rounded-2xl shadow-2xl animate-slide-up overflow-hidden
+          "
+          style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-axiom-border">
             <div>

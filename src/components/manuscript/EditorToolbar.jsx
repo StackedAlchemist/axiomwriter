@@ -14,7 +14,7 @@ function ToolbarBtn({ onClick, active, disabled, title, children }) {
       disabled={disabled}
       title={title}
       className={`
-        p-1.5 rounded text-sm transition-all duration-100
+        p-1.5 rounded text-sm transition-all duration-100 flex-shrink-0
         ${active
           ? 'bg-gold-500/20 text-gold-400'
           : 'text-slate-500 hover:text-slate-200 hover:bg-axiom-surface2'
@@ -70,7 +70,9 @@ export default function EditorToolbar({ editor, onToggleComposer, composerActive
   ]
 
   return (
-    <div className="flex items-center gap-0.5 flex-wrap px-4 py-2 border-b border-axiom-border bg-axiom-surface/80 backdrop-blur-sm flex-shrink-0">
+    // Mobile: one horizontally-scrollable row (never wraps or clips), Compose
+    // pinned at the right edge. Desktop (sm+): wraps as before.
+    <div className="flex items-center gap-0.5 flex-nowrap sm:flex-wrap overflow-x-auto sm:overflow-x-visible px-2 sm:px-4 py-2 border-b border-axiom-border bg-axiom-surface/80 backdrop-blur-sm flex-shrink-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {groups.map((group, gi) => (
         <React.Fragment key={gi}>
           {gi > 0 && <Divider />}
@@ -90,17 +92,17 @@ export default function EditorToolbar({ editor, onToggleComposer, composerActive
       {/* Spacer + Compose button */}
       {onToggleComposer && (
         <>
-          <div className="flex-1" />
-          <Divider />
+          <div className="flex-1 min-w-[8px]" />
           <button
             type="button"
             onMouseDown={e => { e.preventDefault(); onToggleComposer() }}
             title="Composer Mode"
             className={`
-              flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all duration-100
+              sticky right-0 flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-all duration-100
+              bg-axiom-surface shadow-[-8px_0_8px_-4px_rgba(0,0,0,0.4)] sm:shadow-none
               ${composerActive
                 ? 'bg-gold-500/20 text-gold-400 border border-gold-500/30'
-                : 'text-slate-500 hover:text-slate-200 hover:bg-axiom-surface2 border border-transparent'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-axiom-surface2 border border-axiom-border sm:border-transparent'
               }
             `}
           >

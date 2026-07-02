@@ -53,6 +53,20 @@ export default function TimelineLayout({ structure, characters, onOpenScene }) {
       .slice(0, 12)
   }, [characters])
 
+  // Chapter boundary indices for header grouping.
+  // Must run before the early returns below — hooks can't be conditional.
+  const chapterBoundaries = useMemo(() => {
+    const bounds = []
+    let idx = 0
+    chapters.forEach(ch => {
+      if ((ch.scenes || []).length > 0) {
+        bounds.push({ chapterId: ch.id, title: ch.title, startIdx: idx, count: ch.scenes.length })
+        idx += ch.scenes.length
+      }
+    })
+    return bounds
+  }, [chapters])
+
   if (!structure) return null
 
   if (allScenes.length === 0) {
@@ -92,19 +106,6 @@ export default function TimelineLayout({ structure, characters, onOpenScene }) {
       </div>
     )
   }
-
-  // Chapter boundary indices for header grouping
-  const chapterBoundaries = useMemo(() => {
-    const bounds = []
-    let idx = 0
-    chapters.forEach(ch => {
-      if ((ch.scenes || []).length > 0) {
-        bounds.push({ chapterId: ch.id, title: ch.title, startIdx: idx, count: ch.scenes.length })
-        idx += ch.scenes.length
-      }
-    })
-    return bounds
-  }, [chapters])
 
   return (
     <div className="flex-1 overflow-auto bg-axiom-bg">

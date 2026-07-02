@@ -96,9 +96,9 @@ function SortableScene({ scene, isActive, onClick, onDelete, onRename, chapterId
         </span>
       )}
 
-      {!editing && scene.wordCount > 0 && (
+      {!editing && (
         <span className="text-[10px] text-slate-700 flex-shrink-0 group-hover:hidden">
-          {scene.wordCount >= 1000 ? `${(scene.wordCount/1000).toFixed(1)}k` : scene.wordCount}
+          {(scene.wordCount || 0) >= 1000 ? `${(scene.wordCount / 1000).toFixed(1)}k` : (scene.wordCount || 0)}
         </span>
       )}
 
