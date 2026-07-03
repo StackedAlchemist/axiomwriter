@@ -427,6 +427,18 @@ export default function ProjectDetail() {
             Publish
           </button>
 
+          {/* ── Invite a Reader (always visible — sharing shouldn't hide in a menu) ── */}
+          <button
+            onClick={() => canAccess('reader_sharing')
+              ? setShowShare(true)
+              : (setPricingFeature('Reader Sharing'), setShowPricing(true))}
+            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
+            title="Invite a reader — share a read-only link to your manuscript"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            Invite a Reader
+          </button>
+
           <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />
 
           {/* ── Files dropdown (Import / Export / Share) ── */}

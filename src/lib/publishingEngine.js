@@ -82,6 +82,62 @@ export const PLATFORMS = [
     notes:       'Generated .docx is structured for easy ePub conversion via Calibre or Sigil. Heading styles map to chapter markers.',
     trimSizes:   ['Ebook (reflowable)'],
   },
+  {
+    id:          'epub3',
+    label:       'EPUB Ebook',
+    shortLabel:  'EPUB',
+    desc:        'A real .epub file — Apple Books, Kobo, Google Play, Nook, any e-reader',
+    formats:     ['.epub'],
+    kind:        'epub',
+    font:        'Georgia',
+    size:        22,
+    lineSpacing: 240,
+    margins:     { top: 720, bottom: 720, left: 720, right: 720 },
+    notes:       'A complete EPUB 3 ebook with chapter navigation — upload it directly to any ebook store or sideload onto any reader. No conversion step needed.',
+    trimSizes:   ['Ebook (reflowable)'],
+  },
+  {
+    id:          'pdf',
+    label:       'Print PDF',
+    shortLabel:  'PDF',
+    desc:        'Print-ready PDF in a 6×9" book layout — proof copies, beta readers',
+    formats:     ['.pdf'],
+    kind:        'pdf',
+    font:        'Times',
+    size:        22,
+    lineSpacing: 280,
+    margins:     { top: 1080, bottom: 1080, left: 1080, right: 1080 },
+    notes:       'A clean 6×9-inch PDF with title page and chapter breaks. Great for printing proof copies or sending to beta readers who prefer PDF.',
+    trimSizes:   ['6" × 9"'],
+  },
+  {
+    id:          'txt',
+    label:       'Plain Text',
+    shortLabel:  'Plain Text',
+    desc:        'Universal .txt — Wattpad, Royal Road, forums, or anywhere else',
+    formats:     ['.txt'],
+    kind:        'text',
+    font:        'System',
+    size:        24,
+    lineSpacing: 240,
+    margins:     { top: 1440, bottom: 1440, left: 1440, right: 1440 },
+    notes:       'The whole manuscript as clean plain text with chapter headings and * * * scene breaks. Formatting (bold/italic) is not preserved in .txt.',
+    trimSizes:   ['Any'],
+  },
+  {
+    id:          'markdown',
+    label:       'Markdown',
+    shortLabel:  'Markdown',
+    desc:        'A .md file — Obsidian, Notion, GitHub, or importing into other tools',
+    formats:     ['.md'],
+    kind:        'markdown',
+    font:        'System',
+    size:        24,
+    lineSpacing: 240,
+    margins:     { top: 1440, bottom: 1440, left: 1440, right: 1440 },
+    notes:       'Chapters become # headings, scene breaks become horizontal rules, and bold/italic formatting is preserved as Markdown.',
+    trimSizes:   ['Any'],
+  },
 ]
 
 // ── Genre word count guidelines ───────────────────────────────────────────────
@@ -379,13 +435,260 @@ function buildBackMatter(project, platform, { Paragraph, TextRun, AlignmentType 
   ]
 }
 
+// ── Plain-text / Markdown helpers ─────────────────────────────────────────────
+
+// Converts inline HTML to Markdown-flavored text (or plain text when md=false)
+function inlineText(node, md) {
+  let out = ''
+  node.childNodes.forEach(child => {
+    if (child.nodeType === 3) { out += child.textContent; return }
+    if (child.nodeType !== 1) return
+    const tag = child.tagName.toLowerCase()
+    const inner = inlineText(child, md)
+    if (!md) { out += inner; return }
+    if (tag === 'strong' || tag === 'b') out += `**${inner}**`
+    else if (tag === 'em' || tag === 'i') out += `*${inner}*`
+    else if (tag === 's' || tag === 'del') out += `~~${inner}~~`
+    else out += inner
+  })
+  return out
+}
+
+// HTML → array of text blocks: { type: 'p'|'h'|'break'|'quote', text }
+function htmlToBlocks(html, md = false) {
+  if (!html) return []
+  const dom = new DOMParser().parseFromString(html, 'text/html')
+  const blocks = []
+  for (const el of dom.body.children) {
+    const tag = el.tagName?.toLowerCase()
+    if (tag === 'p') {
+      const text = inlineText(el, md).trim()
+      if (text) blocks.push({ type: 'p', text })
+    } else if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+      blocks.push({ type: 'h', text: el.textContent.trim() })
+    } else if (tag === 'hr') {
+      blocks.push({ type: 'break' })
+    } else if (tag === 'blockquote') {
+      const text = inlineText(el, md).trim()
+      if (text) blocks.push({ type: 'quote', text })
+    } else if (tag === 'ul' || tag === 'ol') {
+      for (const li of el.children) {
+        const text = inlineText(li, md).trim()
+        if (text) blocks.push({ type: 'p', text: `${md ? '- ' : '• '}${text}` })
+      }
+    }
+  }
+  return blocks
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+function xmlEscape(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+// ── EPUB 3 builder (real .epub via jszip) ─────────────────────────────────────
+
+async function buildEpub({ proj, chapters, contentMap }) {
+  const JSZip = (await import('jszip')).default
+  const zip = new JSZip()
+  const uuid = `urn:uuid:${crypto.randomUUID()}`
+  const title = proj.title || 'Untitled'
+  const author = proj.authorName || 'Unknown Author'
+  const serializer = new XMLSerializer()
+
+  // Scene HTML → XHTML body markup (parse as HTML, serialize as XML)
+  function toXhtml(html) {
+    if (!html) return ''
+    const dom = new DOMParser().parseFromString(html, 'text/html')
+    return Array.from(dom.body.children).map(el => serializer.serializeToString(el)).join('\n')
+  }
+
+  function page(titleText, bodyMarkup) {
+    return `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head><title>${xmlEscape(titleText)}</title><link rel="stylesheet" type="text/css" href="style.css"/></head>
+<body>${bodyMarkup}</body>
+</html>`
+  }
+
+  // mimetype MUST be first and uncompressed
+  zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' })
+  zip.file('META-INF/container.xml', `<?xml version="1.0" encoding="utf-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
+</container>`)
+
+  zip.file('OEBPS/style.css', `body { font-family: Georgia, serif; line-height: 1.6; margin: 1em; }
+h1.chapter { text-align: center; margin: 2em 0 1.5em; font-size: 1.5em; }
+p { text-indent: 1.25em; margin: 0 0 0.2em; }
+p.first, h1 + p { text-indent: 0; }
+.scene-break { text-align: center; margin: 1.5em 0; text-indent: 0; }
+.titlepage { text-align: center; margin-top: 30%; }
+.titlepage h1 { font-size: 2em; margin-bottom: 0.5em; }
+.titlepage p { text-indent: 0; }`)
+
+  // Title page
+  const titleBody = `<div class="titlepage"><h1>${xmlEscape(title)}</h1>${proj.seriesName ? `<p>${xmlEscape(proj.seriesName)}</p>` : ''}<p>${xmlEscape(author)}</p></div>`
+  zip.file('OEBPS/title.xhtml', page(title, titleBody))
+
+  // Chapters
+  const chapterFiles = chapters.map((ch, i) => {
+    const scenes = (ch.scenes || []).map((scene, si) => {
+      const body = toXhtml(contentMap[scene.id] || '')
+      return si > 0 ? `<p class="scene-break">* * *</p>\n${body}` : body
+    }).join('\n')
+    const markup = `<h1 class="chapter">${xmlEscape(ch.title || `Chapter ${i + 1}`)}</h1>\n${scenes}`
+    const name = `chap-${i + 1}.xhtml`
+    zip.file(`OEBPS/${name}`, page(ch.title || `Chapter ${i + 1}`, markup))
+    return { name, title: ch.title || `Chapter ${i + 1}` }
+  })
+
+  // Navigation
+  zip.file('OEBPS/nav.xhtml', page('Contents', `<nav epub:type="toc" id="toc"><h1>Contents</h1><ol>
+${chapterFiles.map(c => `<li><a href="${c.name}">${xmlEscape(c.title)}</a></li>`).join('\n')}
+</ol></nav>`))
+
+  // Package document
+  const manifest = [
+    '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>',
+    '<item id="css" href="style.css" media-type="text/css"/>',
+    '<item id="titlepage" href="title.xhtml" media-type="application/xhtml+xml"/>',
+    ...chapterFiles.map((c, i) => `<item id="chap${i + 1}" href="${c.name}" media-type="application/xhtml+xml"/>`),
+  ].join('\n    ')
+  const spine = [
+    '<itemref idref="titlepage"/>',
+    ...chapterFiles.map((c, i) => `<itemref idref="chap${i + 1}"/>`),
+  ].join('\n    ')
+
+  zip.file('OEBPS/content.opf', `<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">${uuid}</dc:identifier>
+    <dc:title>${xmlEscape(title)}</dc:title>
+    <dc:creator>${xmlEscape(author)}</dc:creator>
+    <dc:language>en</dc:language>
+    <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d+Z$/, 'Z')}</meta>
+  </metadata>
+  <manifest>
+    ${manifest}
+  </manifest>
+  <spine>
+    ${spine}
+  </spine>
+</package>`)
+
+  return zip.generateAsync({ type: 'blob', mimeType: 'application/epub+zip' })
+}
+
+// ── PDF builder (6×9" book layout via jspdf) ──────────────────────────────────
+
+async function buildPdf({ proj, chapters, contentMap }) {
+  const { jsPDF } = await import('jspdf')
+  const W = 432, H = 648, M = 54            // 6×9in in points, 0.75" margins
+  const bodyWidth = W - M * 2
+  const LINE = 16
+  const pdf = new jsPDF({ unit: 'pt', format: [W, H] })
+
+  // Title page
+  pdf.setFont('times', 'bold').setFontSize(24)
+  pdf.text(proj.title || 'Untitled', W / 2, H / 3, { align: 'center' })
+  pdf.setFont('times', 'normal').setFontSize(12)
+  if (proj.seriesName) pdf.text(proj.seriesName, W / 2, H / 3 + 28, { align: 'center' })
+  pdf.text(proj.authorName || '', W / 2, H / 3 + 56, { align: 'center' })
+  pdf.setFontSize(9)
+  pdf.text(`Copyright © ${new Date().getFullYear()} ${proj.authorName || ''}`, W / 2, H - M, { align: 'center' })
+
+  let y = H // force new page for first chapter
+
+  function ensureRoom(needed = LINE) {
+    if (y + needed > H - M) { pdf.addPage(); y = M }
+  }
+
+  chapters.forEach((ch, ci) => {
+    pdf.addPage()
+    y = M + 72
+    pdf.setFont('times', 'bold').setFontSize(16)
+    pdf.text(ch.title || `Chapter ${ci + 1}`, W / 2, y, { align: 'center' })
+    y += 40
+    pdf.setFont('times', 'normal').setFontSize(11)
+
+    ;(ch.scenes || []).forEach((scene, si) => {
+      if (si > 0) {
+        ensureRoom(LINE * 2)
+        y += LINE / 2
+        pdf.text('* * *', W / 2, y, { align: 'center' })
+        y += LINE * 1.5
+      }
+      htmlToBlocks(contentMap[scene.id] || '').forEach(block => {
+        if (block.type === 'break') {
+          ensureRoom(LINE * 2)
+          y += LINE / 2
+          pdf.text('* * *', W / 2, y, { align: 'center' })
+          y += LINE * 1.5
+          return
+        }
+        if (block.type === 'h') pdf.setFont('times', 'bold')
+        const lines = pdf.splitTextToSize(block.text, bodyWidth)
+        lines.forEach(line => {
+          ensureRoom()
+          pdf.text(line, M, y)
+          y += LINE
+        })
+        if (block.type === 'h') pdf.setFont('times', 'normal')
+        y += 6 // paragraph gap
+      })
+    })
+  })
+
+  return pdf.output('blob')
+}
+
+// ── Text / Markdown builders ──────────────────────────────────────────────────
+
+function buildTextExport({ proj, chapters, contentMap, md }) {
+  const lines = []
+  if (md) {
+    lines.push(`# ${proj.title || 'Untitled'}`, '')
+    if (proj.seriesName) lines.push(`*${proj.seriesName}*`, '')
+    lines.push(`by ${proj.authorName || 'Unknown'}`, '')
+  } else {
+    lines.push((proj.title || 'Untitled').toUpperCase(), '')
+    if (proj.seriesName) lines.push(proj.seriesName, '')
+    lines.push(`by ${proj.authorName || 'Unknown'}`, '', '')
+  }
+
+  chapters.forEach((ch, ci) => {
+    lines.push('', md ? `## ${ch.title || `Chapter ${ci + 1}`}` : (ch.title || `Chapter ${ci + 1}`).toUpperCase(), '')
+    ;(ch.scenes || []).forEach((scene, si) => {
+      if (si > 0) lines.push('', md ? '---' : '* * *', '')
+      htmlToBlocks(contentMap[scene.id] || '', md).forEach(block => {
+        if (block.type === 'break') lines.push('', md ? '---' : '* * *', '')
+        else if (block.type === 'h') lines.push('', md ? `### ${block.text}` : block.text.toUpperCase(), '')
+        else if (block.type === 'quote') lines.push(md ? `> ${block.text}` : `    ${block.text}`, '')
+        else lines.push(block.text, '')
+      })
+    })
+  })
+
+  return new Blob([lines.join('\n')], { type: md ? 'text/markdown' : 'text/plain' })
+}
+
 // ── Main export function ──────────────────────────────────────────────────────
 
 export async function exportManuscript({ project, structure, projectId, platformId, authorName }) {
   const platform = PLATFORMS.find(p => p.id === platformId) || PLATFORMS[0]
   const proj     = { ...project, authorName: authorName || project?.authorName || '[AUTHOR NAME]' }
-
-  const { Document, Packer, Paragraph, TextRun, AlignmentType } = await import('docx')
 
   const chapters = getAllChapters(structure || { hasParts: false, chapters: [] })
 
@@ -394,6 +697,28 @@ export async function exportManuscript({ project, structure, projectId, platform
   const snaps    = await Promise.all(sceneIds.map(id => getDoc(doc(db, 'projects', projectId, 'scenes', id))))
   const contentMap = {}
   sceneIds.forEach((id, i) => { contentMap[id] = snaps[i].exists() ? snaps[i].data().content : '' })
+
+  const baseName = `${(proj.title || 'manuscript').replace(/[^a-z0-9 _-]/gi, '_')}_${platform.shortLabel.replace(/\s+/g, '')}`
+
+  // Non-docx formats
+  if (platform.kind === 'epub') {
+    const blob = await buildEpub({ proj, chapters, contentMap })
+    downloadBlob(blob, `${baseName}.epub`)
+    return
+  }
+  if (platform.kind === 'pdf') {
+    const blob = await buildPdf({ proj, chapters, contentMap })
+    downloadBlob(blob, `${baseName}.pdf`)
+    return
+  }
+  if (platform.kind === 'text' || platform.kind === 'markdown') {
+    const md = platform.kind === 'markdown'
+    const blob = buildTextExport({ proj, chapters, contentMap, md })
+    downloadBlob(blob, `${baseName}.${md ? 'md' : 'txt'}`)
+    return
+  }
+
+  const { Document, Packer, Paragraph, TextRun, AlignmentType } = await import('docx')
 
   const children = [
     ...buildFrontMatter(proj, platform, { Paragraph, TextRun, AlignmentType }),
@@ -439,14 +764,6 @@ export async function exportManuscript({ project, structure, projectId, platform
     }],
   })
 
-  const blob     = await Packer.toBlob(docx)
-  const url      = URL.createObjectURL(blob)
-  const a        = document.createElement('a')
-  const filename = `${(proj.title || 'manuscript').replace(/[^a-z0-9 _-]/gi, '_')}_${platform.shortLabel}`
-  a.href         = url
-  a.download     = `${filename}.docx`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  const blob = await Packer.toBlob(docx)
+  downloadBlob(blob, `${baseName}.docx`)
 }

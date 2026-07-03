@@ -59,6 +59,24 @@ export default function ShareModal({ project, structure, onClose }) {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
+  // Friendly invite message wrapped around the link
+  function inviteMessage(id) {
+    const author = currentUser?.displayName || 'the author'
+    return `Hi!\n\nI'd love for you to read "${project.title || 'my manuscript'}". You can read it right in your browser here:\n\n${shareUrl(id)}\n\nNo account or download needed. Thanks for reading!\n\n— ${author}`
+  }
+
+  function emailInvite(id) {
+    const subject = encodeURIComponent(`Read "${project.title || 'my manuscript'}"`)
+    const body    = encodeURIComponent(inviteMessage(id))
+    window.location.href = `mailto:?subject=${subject}&body=${body}`
+  }
+
+  async function copyInvite(id) {
+    await navigator.clipboard.writeText(inviteMessage(id))
+    setCopiedId(`msg-${id}`)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-axiom-surface border border-axiom-border rounded-2xl shadow-card w-full max-w-lg animate-slide-up max-h-[90vh] flex flex-col">
@@ -98,6 +116,25 @@ export default function ShareModal({ project, structure, onClose }) {
                   {copiedId === newShareId
                     ? <><Check className="w-3.5 h-3.5" />Copied!</>
                     : <><Copy className="w-3.5 h-3.5" />Copy</>}
+                </button>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => emailInvite(newShareId)}
+                  className="btn-secondary text-xs flex items-center gap-1.5"
+                  title="Opens your email app with a ready-to-send invite"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Email invite
+                </button>
+                <button
+                  onClick={() => copyInvite(newShareId)}
+                  className="btn-secondary text-xs flex items-center gap-1.5"
+                  title="Copies a friendly invite message with the link — paste into any text, DM, or email"
+                >
+                  {copiedId === `msg-${newShareId}`
+                    ? <><Check className="w-3.5 h-3.5" />Copied!</>
+                    : <><Copy className="w-3.5 h-3.5" />Copy invite message</>}
                 </button>
               </div>
               <p className="text-[11px] text-slate-500">

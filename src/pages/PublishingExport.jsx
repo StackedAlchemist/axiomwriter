@@ -51,6 +51,21 @@ const PLATFORM_ICONS = {
   d2d:      Smartphone,
   standard: FileText,
   epub:     FileText,
+  epub3:    BookOpen,
+  pdf:      FileText,
+  txt:      FileText,
+  markdown: FileText,
+}
+
+// Where each readiness check gets fixed — warnings/failures become clickable
+const CHECK_ACTIONS = {
+  title:          { label: 'Open project',      path: p => `/projects/${p}`,       state: null },
+  chapter_titles: { label: 'Open manuscript',   path: p => `/projects/${p}`,       state: null },
+  planned_scenes: { label: 'Review scenes',     path: p => `/projects/${p}`,       state: null },
+  word_count:     { label: 'Open manuscript',   path: p => `/projects/${p}`,       state: null },
+  cover:          { label: 'Open Cover Studio', path: p => `/projects/${p}/cover`, state: null },
+  content:        { label: 'Open manuscript',   path: p => `/projects/${p}`,       state: null },
+  synopsis:       { label: 'Open Cover Studio', path: p => `/projects/${p}/cover`, state: null },
 }
 
 function PlatformCard({ platform, selected, onClick }) {
@@ -335,27 +350,42 @@ export default function PublishingExport() {
 
                 {/* Checklist */}
                 <div className="card divide-y divide-axiom-border">
-                  {readiness.checks.map(check => (
-                    <div key={check.id} className="flex items-start gap-3 px-4 py-3.5">
-                      <StatusIcon status={check.status} />
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-medium ${check.status === 'pass' ? 'text-slate-300' : check.status === 'warn' ? 'text-gold-300' : 'text-red-300'}`}>
-                          {check.label}
-                        </p>
-                        {check.note && (
-                          <p className="text-[10px] text-slate-600 leading-relaxed mt-0.5">{check.note}</p>
+                  {readiness.checks.map(check => {
+                    const action = check.status !== 'pass' ? CHECK_ACTIONS[check.id] : null
+                    const row = (
+                      <>
+                        <StatusIcon status={check.status} />
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className={`text-xs font-medium ${check.status === 'pass' ? 'text-slate-300' : check.status === 'warn' ? 'text-gold-300' : 'text-red-300'}`}>
+                            {check.label}
+                          </p>
+                          {check.note && (
+                            <p className="text-[10px] text-slate-600 leading-relaxed mt-0.5">{check.note}</p>
+                          )}
+                        </div>
+                        {action && (
+                          <span className="flex items-center gap-1 text-[10px] text-gold-400 flex-shrink-0 whitespace-nowrap">
+                            {action.label}
+                            <ChevronRight className="w-3 h-3" />
+                          </span>
                         )}
+                      </>
+                    )
+                    return action ? (
+                      <button
+                        key={check.id}
+                        onClick={() => navigate(action.path(projectId), action.state ? { state: action.state } : undefined)}
+                        className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-axiom-surface2 transition-colors"
+                        title={`Fix this: ${action.label}`}
+                      >
+                        {row}
+                      </button>
+                    ) : (
+                      <div key={check.id} className="flex items-start gap-3 px-4 py-3.5">
+                        {row}
                       </div>
-                      {check.status === 'warn' && check.id === 'cover' && (
-                        <button
-                          onClick={() => navigate(`/projects/${projectId}/cover`)}
-                          className="text-[10px] text-gold-400 hover:text-gold-300 transition-colors flex-shrink-0"
-                        >
-                          Open Cover Studio
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </>
             ) : (
