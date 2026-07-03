@@ -112,45 +112,62 @@ exports.stripeWebhook = onRequest(async (req, res) => {
 
   const { type, data } = event
 
-  // Helper: update user subscription in Firestore
+  // Helper: update user subscription in Firestore.
+  // set(..., merge) instead of update() — must work even if the users doc
+  // doesn't exist yet (fresh accounts that subscribe immediately).
   async function updateUserSubscription(subscription) {
     const uid = subscription.metadata?.firebaseUID
     if (!uid) {
       // Fall back to customer lookup
       const customerDoc = await db.collection('users')
         .where('stripeCustomerId', '==', subscription.customer).limit(1).get()
-      if (customerDoc.empty) return
-      await customerDoc.docs[0].ref.update({ subscription: buildSubData(subscription) })
+      if (customerDoc.empty) {
+        console.error('[stripeWebhook] No user found for customer', subscription.customer)
+        return
+      }
+      await customerDoc.docs[0].ref.set({ subscription: buildSubData(subscription) }, { merge: true })
       return
     }
-    await db.collection('users').doc(uid).update({ subscription: buildSubData(subscription) })
+    await db.collection('users').doc(uid).set({ subscription: buildSubData(subscription) }, { merge: true })
   }
 
   function buildSubData(sub) {
-    const priceId = sub.items?.data[0]?.price?.id
+    const item = sub.items?.data?.[0]
+    const priceId = item?.price?.id
+    // Newer Stripe API versions moved current_period_end from the subscription
+    // to the subscription item; trial subscriptions can also expose trial_end.
+    const periodEndSec = sub.current_period_end ?? item?.current_period_end ?? sub.trial_end ?? null
     return {
       stripeSubscriptionId: sub.id,
       tier: PRICE_TO_TIER[priceId] ?? 'free',
       status: sub.status,
-      currentPeriodEnd: admin.firestore.Timestamp.fromMillis(sub.current_period_end * 1000),
-      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      currentPeriodEnd: Number.isFinite(periodEndSec)
+        ? admin.firestore.Timestamp.fromMillis(periodEndSec * 1000)
+        : null,
+      cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }
   }
 
-  switch (type) {
-    case 'customer.subscription.created':
-    case 'customer.subscription.updated':
-      await updateUserSubscription(data.object)
-      break
+  try {
+    switch (type) {
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+        await updateUserSubscription(data.object)
+        break
 
-    case 'customer.subscription.deleted':
-      await updateUserSubscription({ ...data.object, status: 'canceled' })
-      break
+      case 'customer.subscription.deleted':
+        await updateUserSubscription({ ...data.object, status: 'canceled' })
+        break
 
-    default:
-      // Unhandled event types are fine
-      break
+      default:
+        // Unhandled event types are fine
+        break
+    }
+  } catch (err) {
+    // Return 500 so Stripe retries the delivery instead of marking it done
+    console.error(`[stripeWebhook] Failed handling ${type}:`, err)
+    return res.status(500).send('Webhook handler failed')
   }
 
   res.json({ received: true })
