@@ -46,10 +46,9 @@ const PLAN_FEATURES = {
   architect: [
     'Everything in Composer',
     '2,000 AI assists / month',
-    'Real-time editor collaboration',
-    'Live cursor presence',
-    'Beta reader sharing',
+    'Beta reader sharing & feedback',
     'Priority support',
+    'Real-time collaboration (coming soon)',
   ],
 }
 

@@ -16,6 +16,8 @@ import { checkContinuity } from '../lib/seriesEngine'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import CreateSeriesModal from '../components/series/CreateSeriesModal'
 import AddBookModal from '../components/series/AddBookModal'
+import { useSubscription } from '../hooks/useSubscription'
+import UpgradePrompt from '../components/subscription/UpgradePrompt'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -776,6 +778,7 @@ export default function SeriesView() {
 
   const { series, loading: seriesLoading, updateSeries, addBook, removeBook } = useSeriesDetail(seriesId)
   const { entries: loreEntries, createEntry, updateEntry, deleteEntry }       = useSeriesLore(seriesId)
+  const { canAccess, loading: subLoading } = useSubscription()
 
   const [activeTab,    setActiveTab]    = useState('architecture')
   const [showAddBook,  setShowAddBook]  = useState(false)
@@ -819,6 +822,24 @@ export default function SeriesView() {
   }, [series?.books?.map(b => b.projectId).join(',')]) // eslint-disable-line
 
   if (seriesLoading) return <LoadingSpinner fullscreen />
+
+  if (!subLoading && !canAccess('series')) {
+    return (
+      <div className="flex flex-col h-screen bg-axiom-bg">
+        <header className="h-12 flex items-center px-4 border-b border-axiom-border bg-axiom-surface flex-shrink-0">
+          <button onClick={() => navigate('/projects')} className="btn-icon">
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <p className="ml-3 text-sm font-semibold text-slate-400">Series Architecture</p>
+        </header>
+        <UpgradePrompt
+          feature="Series Architecture"
+          description="Manage multi-book series with cross-book continuity checks, shared lore, and character tracking. Available on Writer and above."
+        />
+      </div>
+    )
+  }
+
   if (!series) {
     return (
       <div className="flex flex-col h-screen items-center justify-center bg-axiom-bg">

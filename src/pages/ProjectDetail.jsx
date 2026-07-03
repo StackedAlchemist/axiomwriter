@@ -342,7 +342,18 @@ export default function ProjectDetail() {
           onScroll={updateNavScroll}
           className="flex items-center gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
         >
-          <LayoutSelector activeLayout={activeLayout} onSelect={setActiveLayout} />
+          <LayoutSelector
+            activeLayout={activeLayout}
+            locked={!canAccess('all_layouts')}
+            onSelect={id => {
+              if (id !== 'linear' && !canAccess('all_layouts')) {
+                setPricingFeature('Editor Layouts')
+                setShowPricing(true)
+                return
+              }
+              setActiveLayout(id)
+            }}
+          />
           <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />
           <SaveIndicator />
           <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />

@@ -160,6 +160,24 @@ service cloud.firestore {
                      || (isAuth() && get(/databases/$(database)/documents/projectShares/$(shareId)).data.authorId == uid());
         allow write: if isAuth() && get(/databases/$(database)/documents/projectShares/$(shareId)).data.authorId == uid();
       }
+
+      // Beta reader feedback — readers (no login) can leave feedback on
+      // active shares; only the author can read or manage it. Fields are
+      // strictly validated since creation is public.
+      match /feedback/{feedbackId} {
+        allow create: if get(/databases/$(database)/documents/projectShares/$(shareId)).data.active == true
+                      && request.resource.data.keys().hasOnly(['readerName', 'message', 'chapterTitle', 'createdAt'])
+                      && request.resource.data.message is string
+                      && request.resource.data.message.size() > 0
+                      && request.resource.data.message.size() <= 4000
+                      && request.resource.data.readerName is string
+                      && request.resource.data.readerName.size() <= 80
+                      && request.resource.data.chapterTitle is string
+                      && request.resource.data.chapterTitle.size() <= 200;
+        allow read, delete: if isAuth()
+                      && get(/databases/$(database)/documents/projectShares/$(shareId)).data.authorId == uid();
+        allow update: if false;
+      }
     }
 
     // ── Deny everything else ───────────────────────────────────────────────────

@@ -14,6 +14,8 @@ import CharacterCard from '../components/characters/CharacterCard'
 import CreateCharacterModal from '../components/characters/CreateCharacterModal'
 import MomentumDashboard from '../components/characters/MomentumDashboard'
 import MomentumHistoryGraph from '../components/characters/MomentumHistoryGraph'
+import { useSubscription } from '../hooks/useSubscription'
+import UpgradePrompt from '../components/subscription/UpgradePrompt'
 
 // ── Name extraction helpers ───────────────────────────────────────────────────
 // Layer 2 stoplist — common capitalized non-names (sentence-start words, aux verbs,
@@ -426,6 +428,7 @@ export default function Characters() {
   const navigate      = useNavigate()
   const { characters, loading, createCharacter, deleteCharacter } = useCharacters(projectId)
   const { entries: loreEntries, createEntry: createLoreEntry } = useLore(projectId)
+  const { canAccess } = useSubscription()
 
   const [search,         setSearch]         = useState('')
   const [roleFilter,     setRoleFilter]     = useState('all')
@@ -536,7 +539,13 @@ export default function Characters() {
       <div className="flex-1 max-w-6xl mx-auto w-full px-6 py-6 space-y-5">
 
         {/* ── MOMENTUM TAB ── */}
-        {activeTab === 'momentum' && (
+        {activeTab === 'momentum' && !canAccess('momentum_engine') && (
+          <UpgradePrompt
+            feature="Momentum Engine"
+            description="Track each character's narrative momentum as you write — who's rising, who's stalled, and who the story has forgotten. Available on Composer and above."
+          />
+        )}
+        {activeTab === 'momentum' && canAccess('momentum_engine') && (
           <div className="space-y-6">
             <MomentumDashboard
               characters={characters}

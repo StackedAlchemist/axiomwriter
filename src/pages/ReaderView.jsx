@@ -1,7 +1,105 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { BookOpen, Moon, Sun, ChevronLeft, ChevronRight, Menu, Feather, AlignJustify } from 'lucide-react'
+import { BookOpen, Moon, Sun, ChevronLeft, ChevronRight, Menu, Feather, AlignJustify, MessageSquare, X, Check, Loader2 } from 'lucide-react'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../firebase/config'
 import { loadShareForReader } from '../hooks/useProjectShare'
+
+// ── Beta reader feedback ──────────────────────────────────────────────────────
+// Floating button + panel so readers can send the author feedback without an
+// account. Writes to projectShares/{shareId}/feedback (author-only readable).
+function ReaderFeedback({ shareId, chapterTitle, colors }) {
+  const [open,    setOpen]    = useState(false)
+  const [name,    setName]    = useState('')
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent,    setSent]    = useState(false)
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!message.trim() || sending) return
+    setSending(true)
+    try {
+      await addDoc(collection(db, 'projectShares', shareId, 'feedback'), {
+        readerName:   name.trim().slice(0, 80),
+        message:      message.trim().slice(0, 4000),
+        chapterTitle: (chapterTitle || '').slice(0, 200),
+        createdAt:    serverTimestamp(),
+      })
+      setSent(true)
+      setMessage('')
+      setTimeout(() => { setSent(false); setOpen(false) }, 2200)
+    } catch (err) {
+      console.error('[ReaderFeedback]', err)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg transition-transform hover:scale-105"
+        style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}`, color: colors.text }}
+        title="Send the author your thoughts"
+      >
+        <MessageSquare className="w-4 h-4" style={{ color: colors.link }} />
+        <span className="text-sm font-medium">Feedback</span>
+      </button>
+
+      {open && (
+        <div
+          className="fixed bottom-20 right-5 z-40 w-[calc(100vw-2.5rem)] max-w-sm rounded-2xl shadow-2xl p-4"
+          style={{ backgroundColor: colors.surface, border: `1px solid ${colors.border}` }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold" style={{ color: colors.text }}>Send feedback to the author</p>
+            <button onClick={() => setOpen(false)} style={{ color: colors.muted }}><X className="w-4 h-4" /></button>
+          </div>
+
+          {sent ? (
+            <div className="flex items-center gap-2 py-6 justify-center" style={{ color: colors.link }}>
+              <Check className="w-5 h-5" />
+              <span className="text-sm font-medium">Sent — thank you!</span>
+            </div>
+          ) : (
+            <form onSubmit={submit} className="space-y-3">
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Your name (optional)"
+                maxLength={80}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style={{ backgroundColor: colors.bg, border: `1px solid ${colors.border}`, color: colors.text }}
+              />
+              <textarea
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                placeholder={chapterTitle ? `Thoughts on "${chapterTitle}"…` : 'What did you think?'}
+                rows={4}
+                maxLength={4000}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+                style={{ backgroundColor: colors.bg, border: `1px solid ${colors.border}`, color: colors.text }}
+              />
+              <button
+                type="submit"
+                disabled={!message.trim() || sending}
+                className="w-full py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-40"
+                style={{ backgroundColor: colors.link, color: '#fff' }}
+              >
+                {sending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Send feedback'}
+              </button>
+              <p className="text-[10px] text-center" style={{ color: colors.muted }}>
+                Goes straight to the author — includes which chapter you're reading.
+              </p>
+            </form>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
 
 const THEMES = {
   light: {
@@ -340,6 +438,13 @@ export default function ReaderView() {
           </main>
         </div>
       </div>
+
+      {/* Beta reader feedback — floating, theme-aware */}
+      <ReaderFeedback
+        shareId={shareId}
+        chapterTitle={share?.chapters?.[activeChapter]?.title || ''}
+        colors={c}
+      />
     </>
   )
 }

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { LayoutTemplate, ChevronDown } from 'lucide-react'
+import { LayoutTemplate, ChevronDown, Lock } from 'lucide-react'
 
 export const LAYOUTS = [
   {
@@ -86,7 +86,7 @@ export const LAYOUTS = [
   },
 ]
 
-export default function LayoutSelector({ activeLayout, onSelect }) {
+export default function LayoutSelector({ activeLayout, onSelect, locked = false }) {
   const [open, setOpen] = useState(false)
   const [pos,  setPos]  = useState({ top: 0, left: 0 })
   const btnRef = useRef(null)
@@ -133,7 +133,12 @@ export default function LayoutSelector({ activeLayout, onSelect }) {
           >
             <div className="flex-shrink-0">{layout.thumb}</div>
             <div className="min-w-0">
-              <span className="block text-xs font-semibold leading-tight">{layout.name}</span>
+              <span className="flex items-center gap-1.5 text-xs font-semibold leading-tight">
+                {layout.name}
+                {locked && layout.id !== 'linear' && (
+                  <Lock className="w-2.5 h-2.5 text-gold-500/70" title="Writer plan and above" />
+                )}
+              </span>
               <span className={`block text-[10px] leading-snug mt-0.5 ${activeLayout === layout.id ? 'text-gold-400/70' : 'text-slate-600'}`}>
                 {layout.description}
               </span>
