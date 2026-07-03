@@ -323,6 +323,13 @@ html.light[data-writing-env]:not([data-writing-env=""]) .scene-editor-wrap .bg-a
   caret-color: #c9a84c;
 }
 
+/* Inline variant — stacked scene editors in the chapter writing view share
+   the exact same typography but without the full-page scroll padding. */
+.tiptap-prose.tiptap-inline .ProseMirror {
+  min-height: 3rem;
+  padding-bottom: 0.75rem;
+}
+
 .tiptap-prose .ProseMirror p {
   line-height: 1.85;
   color: #dde6f5;

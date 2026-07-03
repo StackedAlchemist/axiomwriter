@@ -23,13 +23,9 @@ const STATUS_DOT = {
   locked:   'bg-purple-500',
 }
 
-const PROSE_CLASSES = `prose prose-invert prose-sm max-w-none
-  prose-p:text-slate-300 prose-p:leading-relaxed prose-p:my-3
-  prose-headings:text-slate-200 prose-headings:font-serif
-  prose-strong:text-slate-200
-  prose-em:text-slate-400
-  prose-blockquote:border-gold-500/30 prose-blockquote:text-slate-400
-  selection:bg-gold-500/20`
+// Same typography as the single-scene editor (.tiptap-prose in index.css),
+// minus the full-page scroll padding.
+const PROSE_CLASSES = 'tiptap-prose tiptap-inline'
 
 function countWords(text) {
   const t = (text || '').trim()
@@ -232,7 +228,7 @@ export default function ChapterView({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-4 sm:px-8 py-10">
+      <div className="max-w-[740px] mx-auto px-4 sm:px-8 py-10">
 
         {/* Chapter header */}
         <h1 className="font-serif text-3xl text-slate-200 mb-2">{chapter.title}</h1>
