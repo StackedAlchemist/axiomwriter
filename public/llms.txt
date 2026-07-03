@@ -22,10 +22,12 @@ Fiction writers at any experience level, any genre. Primary use case: authors ma
 
 ## Pricing
 
-- **Free**: 1 project, basic character and lore tracking, no AI assists, no export
-- **Writer ($9/month)**: Unlimited projects, AI writing assistance, standard exports
-- **Composer ($19/month)**: Everything in Writer plus Composer Mode, World Map, Cover Studio
-- **Architect ($39/month)**: Everything in Composer plus series architecture, beta reader sharing, priority support
+All paid plans include a 7-day free trial.
+
+- **Free**: 1 project, full manuscript editor, character list, DOCX/TXT/Markdown import, Word export. No AI assists.
+- **Writer ($9.99/month)**: Unlimited projects, all writing layouts, Lore Bible, Plot Thread Detector, Series continuity, Voice DNA, 100 AI assists/month
+- **Composer ($19.99/month)**: Everything in Writer plus Composer Mode, Momentum engine, World Map Builder, Cover Studio, publishing export (EPUB/PDF/KDP/IngramSpark), 1,000 AI assists/month
+- **Architect ($39.99/month)**: Everything in Composer plus beta reader sharing and feedback inbox, 2,000 AI assists/month. Real-time collaboration is in development ("coming soon").
 
 ## Technical Context
 

@@ -13,6 +13,7 @@ import AppShell from './components/layout/AppShell'
 import OnboardingFlow from './components/onboarding/OnboardingFlow'
 
 // ── Auth (small, load eagerly) ────────────────────────────────────────────────
+import Landing from './pages/Landing'
 import Login from './components/auth/Login'
 import Signup from './components/auth/Signup'
 import ForgotPassword from './components/auth/ForgotPassword'
@@ -73,6 +74,7 @@ export default function App() {
       <ErrorBoundary>
         <Routes>
           {/* Public routes */}
+          <Route path="/"                element={<Landing />} />
           <Route path="/login"           element={<Login />} />
           <Route path="/signup"          element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -107,8 +109,9 @@ export default function App() {
             </Route>
           </Route>
 
-          {/* Default redirect */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* Default redirect — unknown URLs land on the public homepage
+              (Landing forwards signed-in users to /dashboard) */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ErrorBoundary>
 

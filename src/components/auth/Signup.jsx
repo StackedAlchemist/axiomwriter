@@ -2,10 +2,17 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { Eye, EyeOff, Feather, AlertCircle, Check } from 'lucide-react'
+import usePageMeta from '../../hooks/usePageMeta'
 
 export default function Signup() {
   const { signup, loginWithGoogle } = useAuth()
   const navigate   = useNavigate()
+
+  usePageMeta({
+    title: 'Create Your Free Account',
+    description: 'Create a free Axiomwriter account — manuscript editor, characters, and your first project free. Paid plans start with a 7-day free trial.',
+    path: '/signup',
+  })
 
   const [form, setForm]         = useState({ displayName: '', email: '', password: '', confirm: '' })
   const [showPassword, setShow] = useState(false)

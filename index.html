@@ -55,21 +55,39 @@
           "name": "Writer",
           "price": "9.99",
           "priceCurrency": "USD",
-          "billingIncrement": "P1M"
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "9.99",
+            "priceCurrency": "USD",
+            "billingDuration": 1,
+            "unitCode": "MON"
+          }
         },
         {
           "@type": "Offer",
           "name": "Composer",
           "price": "19.99",
           "priceCurrency": "USD",
-          "billingIncrement": "P1M"
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "19.99",
+            "priceCurrency": "USD",
+            "billingDuration": 1,
+            "unitCode": "MON"
+          }
         },
         {
           "@type": "Offer",
           "name": "Architect",
           "price": "39.99",
           "priceCurrency": "USD",
-          "billingIncrement": "P1M"
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "39.99",
+            "priceCurrency": "USD",
+            "billingDuration": 1,
+            "unitCode": "MON"
+          }
         }
       ],
       "author": {
@@ -130,6 +148,17 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <div style="max-width:640px;margin:80px auto;padding:0 24px;font-family:Georgia,serif;color:#e2e8f0;">
+        <h1>Axiomwriter — AI Writing Platform for Fiction Authors</h1>
+        <p>Paste your manuscript and get a story bible: chapters, scenes, characters, and a living
+        lore bible, with AI that knows your world, your cast, and your voice. Manuscript editor,
+        plot thread tracking, world map builder, and publish-ready EPUB/PDF/DOCX export.
+        Free to start; paid plans from $9.99/month with a 7-day free trial.</p>
+        <p>Axiomwriter requires JavaScript. Visit <a href="https://axiomwriter.com" style="color:#C9A84C;">axiomwriter.com</a>
+        in a modern browser to get started.</p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

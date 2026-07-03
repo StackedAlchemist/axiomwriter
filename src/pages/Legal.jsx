@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Feather } from 'lucide-react'
+import usePageMeta from '../hooks/usePageMeta'
 
 /**
  * Public legal pages: Terms of Service and Privacy Policy.
@@ -10,12 +11,13 @@ import { ArrowLeft, Feather } from 'lucide-react'
 const LAST_UPDATED = 'July 2, 2026'
 const CONTACT_EMAIL = 'stackedalchemist@gmail.com'
 
-function LegalShell({ title, children }) {
+function LegalShell({ title, description, children }) {
+  usePageMeta({ title, description })
   return (
     <div className="min-h-screen bg-axiom-bg text-slate-300">
       <header className="border-b border-axiom-border bg-axiom-surface">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/login" className="flex items-center gap-2 text-slate-400 hover:text-gold-400 transition-colors text-sm">
+          <Link to="/" className="flex items-center gap-2 text-slate-400 hover:text-gold-400 transition-colors text-sm">
             <ArrowLeft className="w-4 h-4" /> Back to Axiomwriter
           </Link>
           <div className="flex items-center gap-2 text-slate-500">
@@ -49,7 +51,7 @@ function LegalShell({ title, children }) {
 // ── Terms of Service ──────────────────────────────────────────────────────────
 export function Terms() {
   return (
-    <LegalShell title="Terms of Service">
+    <LegalShell title="Terms of Service" description="Terms of Service for Axiomwriter, the AI-powered writing platform for fiction authors, operated by Stacked Alchemist LLC.">
       <section>
         <h2>1. Who we are and what this covers</h2>
         <p>
@@ -216,7 +218,7 @@ export function Terms() {
 // ── Privacy Policy ────────────────────────────────────────────────────────────
 export function Privacy() {
   return (
-    <LegalShell title="Privacy Policy">
+    <LegalShell title="Privacy Policy" description="How Axiomwriter collects, uses, and protects your data. Your manuscripts are yours — we never train AI on your writing.">
       <section>
         <h2>1. The short version</h2>
         <ul>

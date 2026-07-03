@@ -2,16 +2,15 @@ User-agent: *
 Allow: /
 Allow: /login
 Allow: /signup
+Allow: /terms
+Allow: /privacy
 Disallow: /dashboard
 Disallow: /projects
 Disallow: /settings
-Disallow: /characters
-Disallow: /lore
-Disallow: /threads
+Disallow: /profile
 Disallow: /series
-Disallow: /worldmap
-Disallow: /cover-studio
-Disallow: /publishing
+Disallow: /read/
+Disallow: /forgot-password
 
 # AI crawlers — explicitly allowed to index the public marketing content
 User-agent: GPTBot

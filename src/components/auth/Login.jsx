@@ -3,10 +3,17 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { Eye, EyeOff, Feather, AlertCircle } from 'lucide-react'
 import MarqueeBanner from '../common/MarqueeBanner'
+import usePageMeta from '../../hooks/usePageMeta'
 
 export default function Login() {
   const { login, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
+
+  usePageMeta({
+    title: 'Sign In',
+    description: 'Sign in to Axiomwriter and continue your story.',
+    path: '/login',
+  })
 
   const [form, setForm]                   = useState({ email: '', password: '' })
   const [showPassword, setShow]           = useState(false)
