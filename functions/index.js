@@ -136,13 +136,18 @@ exports.stripeWebhook = onRequest(async (req, res) => {
     const priceId = item?.price?.id
     // Newer Stripe API versions moved current_period_end from the subscription
     // to the subscription item; trial subscriptions can also expose trial_end.
-    const periodEndSec = sub.current_period_end ?? item?.current_period_end ?? sub.trial_end ?? null
+    const periodEndSec   = sub.current_period_end ?? item?.current_period_end ?? sub.trial_end ?? null
+    const periodStartSec = sub.current_period_start ?? item?.current_period_start ?? sub.trial_start ?? null
     return {
       stripeSubscriptionId: sub.id,
       tier: PRICE_TO_TIER[priceId] ?? 'free',
       status: sub.status,
       currentPeriodEnd: Number.isFinite(periodEndSec)
         ? admin.firestore.Timestamp.fromMillis(periodEndSec * 1000)
+        : null,
+      // AI quota resets on this anniversary, not the calendar month
+      currentPeriodStart: Number.isFinite(periodStartSec)
+        ? admin.firestore.Timestamp.fromMillis(periodStartSec * 1000)
         : null,
       cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -237,17 +242,25 @@ exports.callAI = onCall(async (request) => {
       throw new HttpsError('permission-denied', 'AI assists are not available on the free plan. Upgrade to Writer or above.')
     }
 
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
+    // Quota window: the current billing period (anniversary-based). Falls
+    // back to the calendar month for docs written before periods were stored.
+    let windowStart
+    const periodStart = userData.subscription?.currentPeriodStart
+    if (periodStart?.toDate) {
+      windowStart = periodStart.toDate()
+    } else {
+      windowStart = new Date()
+      windowStart.setDate(1)
+      windowStart.setHours(0, 0, 0, 0)
+    }
     const usageSnap = await db.collection('aiSuggestions')
       .where('uid', '==', userId)
-      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(startOfMonth))
+      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(windowStart))
       .get()
-    const monthlyCount = usageSnap.size
+    const usedThisPeriod = usageSnap.size
 
-    if (monthlyCount >= limit) {
-      throw new HttpsError('resource-exhausted', `You've used all ${limit} AI assists for this month. Upgrade your plan to continue.`)
+    if (usedThisPeriod >= limit) {
+      throw new HttpsError('resource-exhausted', `You've used all ${limit} AI assists for this billing cycle. Upgrade your plan to continue.`)
     }
   }
 
