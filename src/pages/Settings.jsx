@@ -8,6 +8,7 @@ import { useUsageTracking } from '../hooks/useUsageTracking'
 import { openBillingPortal } from '../lib/stripe'
 import UsageMeter from '../components/subscription/UsageMeter'
 import PricingModal from '../components/subscription/PricingModal'
+import { EXPORT_SECTIONS, exportUserDocx } from '../lib/dataExport'
 import {
   Shield, CreditCard, Zap, Download, AlertTriangle,
   Check, ChevronRight, ExternalLink,
@@ -336,7 +337,34 @@ function AccountSettings({ currentUser }) {
 }
 
 function DataSettings({ currentUser }) {
-  const [exporting, setExporting] = useState(false)
+  const [exporting, setExporting]   = useState(false)
+  const [selected, setSelected]     = useState(() => new Set(EXPORT_SECTIONS.map(s => s.id)))
+  const [progress, setProgress]     = useState('')
+  const [exportMsg, setExportMsg]   = useState(null) // { type: 'ok'|'err', text }
+
+  function toggleSection(id) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  async function exportDocx() {
+    if (selected.size === 0) return
+    setExporting(true)
+    setExportMsg(null)
+    try {
+      const { fileCount } = await exportUserDocx(currentUser.uid, [...selected], setProgress)
+      setExportMsg({ type: 'ok', text: fileCount === 1 ? 'Downloaded 1 Word document.' : `Downloaded ${fileCount} Word documents in a ZIP.` })
+    } catch (err) {
+      console.error('[export]', err)
+      setExportMsg({ type: 'err', text: err?.message || 'Export failed. Please try again.' })
+    } finally {
+      setExporting(false)
+      setProgress('')
+    }
+  }
 
   async function exportData() {
     setExporting(true)
@@ -380,12 +408,67 @@ function DataSettings({ currentUser }) {
 
   return (
     <div className="space-y-6">
-      <SectionHeader title="Data & Export" subtitle="Download or manage your data" />
+      <SectionHeader title="Data & Export" subtitle="Download your work as Word documents" />
 
+      {/* ── Word export ── */}
       <div className="bg-axiom-surface2 border border-axiom-border rounded-xl p-5">
-        <h4 className="text-sm font-medium text-slate-300 mb-1">Export all data</h4>
+        <h4 className="text-sm font-medium text-slate-300 mb-1">Export as Word documents</h4>
         <p className="text-xs text-slate-500 mb-4">
-          Download a complete JSON archive of all your projects, chapters, and characters.
+          Formatted .docx files that open in Word, Pages, or Google Docs — styled the way you wrote them here.
+          Pick the sections you want; multiple sections (or multiple projects) arrive as a ZIP organized by project.
+        </p>
+
+        <div className="grid sm:grid-cols-2 gap-2 mb-4">
+          {EXPORT_SECTIONS.map(section => {
+            const on = selected.has(section.id)
+            return (
+              <button
+                key={section.id}
+                onClick={() => toggleSection(section.id)}
+                className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all ${
+                  on ? 'border-gold-500/40 bg-gold-500/10' : 'border-axiom-border hover:border-axiom-border-light'
+                }`}
+              >
+                <div className={`w-4 h-4 mt-0.5 rounded border flex items-center justify-center flex-shrink-0 ${
+                  on ? 'bg-gold-500/20 border-gold-500/50' : 'border-slate-600'
+                }`}>
+                  {on && <Check className="w-3 h-3 text-gold-400" />}
+                </div>
+                <div>
+                  <p className={`text-xs font-semibold ${on ? 'text-gold-400' : 'text-slate-300'}`}>{section.label}</p>
+                  <p className="text-[10px] text-slate-600 leading-relaxed mt-0.5">{section.desc}</p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={exportDocx}
+            disabled={exporting || selected.size === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gold-500/10 hover:bg-gold-500/20 text-sm text-gold-400 border border-gold-500/30 transition-colors disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5" />
+            {exporting
+              ? (progress || 'Preparing…')
+              : selected.size === EXPORT_SECTIONS.length
+                ? 'Download everything'
+                : `Download ${selected.size} section${selected.size !== 1 ? 's' : ''}`}
+          </button>
+          {exportMsg && (
+            <span className={`text-xs ${exportMsg.type === 'ok' ? 'text-teal-400' : 'text-red-400'}`}>
+              {exportMsg.text}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Raw backup ── */}
+      <div className="bg-axiom-surface2 border border-axiom-border rounded-xl p-5">
+        <h4 className="text-sm font-medium text-slate-300 mb-1">Raw backup (JSON)</h4>
+        <p className="text-xs text-slate-500 mb-4">
+          A machine-readable archive of everything, for safekeeping or migrating data. Most writers want the Word export above instead.
         </p>
         <button
           onClick={exportData}
@@ -393,7 +476,7 @@ function DataSettings({ currentUser }) {
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-axiom-surface hover:bg-axiom-border text-sm text-slate-300 border border-axiom-border transition-colors disabled:opacity-50"
         >
           <Download className="w-3.5 h-3.5" />
-          {exporting ? 'Preparing…' : 'Download data'}
+          {exporting ? 'Preparing…' : 'Download JSON backup'}
         </button>
       </div>
     </div>
