@@ -66,7 +66,8 @@ export default function PricingModal({ onClose, highlightFeature }) {
     try {
       await startCheckout(planId, currentUser.uid, currentUser.email)
     } catch (err) {
-      setError('Could not start checkout. Please try again.')
+      console.error('[PricingModal] checkout failed:', err)
+      setError(err?.message ? `Could not start checkout: ${err.message}` : 'Could not start checkout. Please try again.')
       setLoading(null)
     }
   }

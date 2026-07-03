@@ -1,8 +1,5 @@
-import { loadStripe } from '@stripe/stripe-js'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app from '../firebase/config'
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
 
 export const PRICES = {
   writer:   { monthly: import.meta.env.VITE_STRIPE_WRITER_PRICE_ID,   amount: 9  },
@@ -22,8 +19,9 @@ export async function startCheckout(tierId, userId, userEmail) {
     cancelUrl:  `${window.location.origin}/settings`,
   })
 
-  const stripe = await stripePromise
-  await stripe.redirectToCheckout({ sessionId: data.sessionId })
+  // Navigate straight to Stripe's hosted checkout page.
+  if (!data?.url) throw new Error('Checkout session missing URL')
+  window.location.href = data.url
 }
 
 export async function openBillingPortal(userId) {

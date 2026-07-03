@@ -70,7 +70,9 @@ exports.createCheckoutSession = onCall(async (request) => {
     allow_promotion_codes: true,
   })
 
-  return { sessionId: session.id }
+  // session.url is Stripe's hosted checkout page — the client navigates there
+  // directly. (redirectToCheckout via stripe-js is deprecated/removed.)
+  return { sessionId: session.id, url: session.url }
 })
 
 // ── Create Billing Portal ─────────────────────────────────────────────────────
