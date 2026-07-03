@@ -570,6 +570,9 @@ export default function ProjectDetail() {
               sceneContents={ms.chapterSceneContents}
               loading={ms.chapterLoading}
               onEditScene={ms.loadScene}
+              onSaveScene={ms.saveSceneContent}
+              onInsertSceneAfter={ms.insertSceneAfter}
+              onSaveStatusChange={handleSaveStatusChange}
             />
           ) : ms.activeSceneId ? (
             <SceneEditor

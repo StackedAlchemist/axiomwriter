@@ -198,6 +198,28 @@ export function useManuscript(projectId) {
     return scene
   }, [structure, updateStructure])
 
+  // Insert a new scene immediately after another — used by the chapter
+  // writing view's "scene break at cursor". Optionally seeds content (the
+  // text after the cursor) so the split lands in one structure write.
+  const insertSceneAfter = useCallback(async (chapterId, afterSceneId, { content = '', wordCount = 0 } = {}) => {
+    const scene = { id: genId('sc'), title: 'Untitled Scene', wordCount, status: 'drafted', povCharacter: '', tags: [] }
+    if (content) {
+      await setDoc(doc(db, 'projects', projectId, 'scenes', scene.id), {
+        content,
+        updatedAt: serverTimestamp(),
+      }, { merge: true })
+    }
+    const newStructure = mapChapters(structure, ch => {
+      if (ch.id !== chapterId) return ch
+      const idx = ch.scenes.findIndex(s => s.id === afterSceneId)
+      const scenes = [...ch.scenes]
+      scenes.splice(idx === -1 ? scenes.length : idx + 1, 0, scene)
+      return { ...ch, scenes }
+    })
+    await updateStructure(newStructure)
+    return scene
+  }, [projectId, structure, updateStructure])
+
   const updateSceneMeta = useCallback(async (sceneId, updates) => {
     const newStructure = mapChapters(structure, ch => ({
       ...ch,
@@ -306,7 +328,7 @@ export function useManuscript(projectId) {
     activeSceneId, activeSceneContent, sceneLoading,
     activeChapterId, chapterSceneContents, chapterLoading,
     loadScene, loadChapter, saveSceneContent,
-    addPart, addChapter, addScene,
+    addPart, addChapter, addScene, insertSceneAfter,
     updateSceneMeta, renameChapter, renamePart,
     deleteScene, deleteChapter,
     reorderScenes, reorderChapters,
