@@ -216,7 +216,7 @@ const SceneEditor = React.forwardRef(function SceneEditor({
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-axiom-bg relative scene-editor-wrap">
+    <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-axiom-bg relative scene-editor-wrap">
 
       {/* Lore gap popover */}
       {gapPopover && (
@@ -312,7 +312,7 @@ const SceneEditor = React.forwardRef(function SceneEditor({
         {/* Whole-manuscript recovery: a scene this big is almost certainly a
             full paste that skipped the import flow. Offer to split it. */}
         {!focusMode && !splitDismissed && localWords >= 8000 && onLargePaste && (
-          <div className="mx-4 sm:mx-8 mt-4 max-w-[740px] lg:mx-auto w-auto lg:w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gold-500/10 border border-gold-500/30 flex-shrink-0">
+          <div className="mx-4 sm:mx-6 lg:mx-10 mt-4 w-auto flex items-center gap-3 px-4 py-3 rounded-xl bg-gold-500/10 border border-gold-500/30 flex-shrink-0">
             <BookOpen className="w-4 h-4 text-gold-400 flex-shrink-0" />
             <p className="flex-1 text-xs text-slate-300 leading-relaxed">
               This scene holds <span className="font-semibold text-gold-400">{localWords.toLocaleString()} words</span> — that looks like a whole manuscript.
@@ -333,8 +333,8 @@ const SceneEditor = React.forwardRef(function SceneEditor({
             </button>
           </div>
         )}
-        {/* Scene title */}
-        <div className="px-4 sm:px-8 pt-8 pb-2 max-w-[740px] mx-auto w-full">
+        {/* Scene title — full available width */}
+        <div className="writing-canvas px-5 sm:px-8 lg:px-12 xl:px-16 pt-8 pb-2 w-full">
           {editingTitle ? (
             <input
               autoFocus
@@ -358,9 +358,9 @@ const SceneEditor = React.forwardRef(function SceneEditor({
           )}
         </div>
 
-        {/* Editor scroll area */}
+        {/* Editor scroll area — border-to-border of the writing pane */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
-          <div className={`max-w-[740px] mx-auto px-4 sm:px-8 pb-8 tiptap-prose ${typewriter ? 'typewriter-mode' : ''}`}>
+          <div className={`writing-canvas w-full px-5 sm:px-8 lg:px-12 xl:px-16 pb-16 tiptap-prose ${typewriter ? 'typewriter-mode' : ''}`}>
             <EditorContent editor={editor} />
           </div>
         </div>
@@ -402,8 +402,8 @@ const SceneEditor = React.forwardRef(function SceneEditor({
 
       {/* Notes tab */}
       {activeTab === 'notes' && (
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-[740px] mx-auto">
+        <div className="flex-1 overflow-y-auto p-5 sm:p-8 lg:px-12 xl:px-16">
+          <div className="writing-canvas w-full">
             <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest mb-3">Scene Notes</p>
             <textarea
               value={notesVal}

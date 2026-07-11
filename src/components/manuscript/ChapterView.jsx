@@ -228,7 +228,7 @@ export default function ChapterView({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-[740px] mx-auto px-4 sm:px-8 py-10">
+      <div className="writing-canvas w-full px-5 sm:px-8 lg:px-12 xl:px-16 py-10">
 
         {/* Chapter header */}
         <h1 className="font-serif text-3xl text-slate-200 mb-2">{chapter.title}</h1>

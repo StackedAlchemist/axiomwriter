@@ -2,7 +2,8 @@
  * Codex — Axiom's built-in help system.
  * Full visual guide with SVG illustrations for every feature.
  */
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   X, BookOpen, Feather, Users, GitBranch, Clock,
   Zap, Map, LayoutGrid, HelpCircle, Layers, AlertCircle, ClipboardCheck,
@@ -796,80 +797,139 @@ const PAGES = [
 ]
 
 // ─── Component ────────────────────────────────────────────────────────────────
+// Portal to document.body so a transformed sidebar parent cannot trap
+// position:fixed into a narrow "sliver" containing block.
 
 export default function Codex({ onClose }) {
   const [activeId, setActiveId] = useState('scenes')
+  const [mobileNav, setMobileNav] = useState(false)
   const active = PAGES.find(p => p.id === activeId) || PAGES[0]
   const Icon = active.icon
   const Illustration = active.illustration
 
-  return (
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+
+  const selectPage = (id) => {
+    setActiveId(id)
+    setMobileNav(false)
+  }
+
+  const panel = (
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-black/65 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Codex — Axiom knowledge base"
     >
       <div
-        className="bg-axiom-surface border border-axiom-border rounded-2xl shadow-2xl w-full max-w-4xl"
-        style={{ height: '85vh', display: 'grid', gridTemplateColumns: '200px 1fr', overflow: 'hidden' }}
+        className="codex-shell bg-axiom-surface border border-axiom-border shadow-2xl w-full sm:rounded-2xl overflow-hidden flex flex-col sm:flex-row"
+        style={{
+          maxWidth: '960px',
+          height: 'min(90vh, 820px)',
+          maxHeight: '100dvh',
+        }}
         onClick={e => e.stopPropagation()}
       >
 
-        {/* Sidebar nav */}
-        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--axiom-border)', background: 'var(--axiom-bg)' }}>
-          <div style={{ padding: '16px', borderBottom: '1px solid var(--axiom-border)', flexShrink: 0 }}>
-            <p className="font-serif text-base font-semibold" style={{ color: 'var(--axiom-text)' }}>Codex</p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--axiom-muted)' }}>Axiom Knowledge Base</p>
+        {/* Topic nav — full drawer on mobile, side column on desktop */}
+        <div
+          className={`
+            codex-nav flex flex-col flex-shrink-0 border-b sm:border-b-0 sm:border-r border-axiom-border
+            ${mobileNav ? 'flex' : 'hidden sm:flex'}
+          `}
+          style={{
+            width: '100%',
+            maxWidth: '100%',
+            background: 'var(--axiom-bg)',
+          }}
+        >
+          <div className="px-4 py-4 border-b border-axiom-border flex-shrink-0 flex items-center justify-between gap-2">
+            <div>
+              <p className="font-serif text-base font-semibold" style={{ color: 'var(--axiom-text)' }}>Codex</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--axiom-muted)' }}>Axiom Knowledge Base</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-icon sm:hidden"
+              aria-label="Close Codex"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <nav style={{ flex: 1, overflowY: 'auto' }}>
+          <nav className="flex-1 overflow-y-auto den-scrollbar py-1 sm:w-[220px] sm:min-w-[220px]">
             {PAGES.map(page => {
               const PageIcon = page.icon
               const isActive = activeId === page.id
               return (
                 <button
                   key={page.id}
-                  onClick={() => setActiveId(page.id)}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 16px', textAlign: 'left', cursor: 'pointer',
-                    borderRight: isActive ? '2px solid #c9a84c' : '2px solid transparent',
-                    background: isActive ? 'rgba(201,168,76,0.08)' : 'transparent',
-                    color: isActive ? '#c9a84c' : 'var(--axiom-muted)',
-                    transition: 'background 0.15s, color 0.15s',
-                  }}
-                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--axiom-surface2)' }}
-                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                  type="button"
+                  onClick={() => selectPage(page.id)}
+                  className={`
+                    w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors
+                    ${isActive
+                      ? 'bg-gold-500/10 text-gold-400 border-r-2 border-gold-500'
+                      : 'text-[var(--axiom-muted)] hover:bg-axiom-surface2 border-r-2 border-transparent'}
+                  `}
                 >
-                  <PageIcon style={{ width: 14, height: 14, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{page.label}</span>
+                  <PageIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="text-xs font-medium truncate">{page.label}</span>
                 </button>
               )
             })}
           </nav>
         </div>
 
-        {/* Content area */}
-        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--axiom-surface)' }}>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--axiom-border)', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon style={{ width: 16, height: 16, color: '#c9a84c' }} />
+        {/* Content pane */}
+        <div
+          className={`flex-1 min-w-0 flex flex-col overflow-hidden bg-axiom-surface ${mobileNav ? 'hidden sm:flex' : 'flex'}`}
+          style={{ minWidth: 0 }}
+        >
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5 border-b border-axiom-border flex-shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={() => setMobileNav(true)}
+                className="btn-icon sm:hidden flex-shrink-0"
+                aria-label="Topics"
+              >
+                <BookOpen className="w-4 h-4" />
+              </button>
+              <div className="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/20 flex items-center justify-center flex-shrink-0">
+                <Icon className="w-4 h-4 text-gold-400" />
               </div>
-              <h2 className="font-serif text-lg font-semibold" style={{ color: 'var(--axiom-text)' }}>{active.label}</h2>
+              <h2 className="font-serif text-lg font-semibold truncate" style={{ color: 'var(--axiom-text)' }}>
+                {active.label}
+              </h2>
             </div>
             <button
+              type="button"
               onClick={onClose}
-              style={{ padding: 6, borderRadius: 8, color: 'var(--axiom-muted)', cursor: 'pointer', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center' }}
+              className="btn-icon flex-shrink-0"
               title="Close"
+              aria-label="Close Codex"
             >
-              <X style={{ width: 16, height: 16 }} />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Scrollable body */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-            {Illustration && <Illustration />}
+          <div className="flex-1 overflow-y-auto den-scrollbar px-4 sm:px-6 py-5 space-y-6">
+            {Illustration && (
+              <div className="w-full overflow-hidden rounded-xl">
+                <Illustration />
+              </div>
+            )}
 
             {active.what && (
               <Section title="What is this?">
@@ -885,16 +945,10 @@ export default function Codex({ onClose }) {
 
             {active.how?.length > 0 && (
               <Section title="How to use it">
-                <ol style={{ display: 'flex', flexDirection: 'column', gap: 12, listStyle: 'none', padding: 0, margin: 0 }}>
+                <ol className="flex flex-col gap-3 list-none p-0 m-0">
                   {active.how.map((step, i) => (
-                    <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                      <span style={{
-                        width: 20, height: 20, borderRadius: '50%',
-                        background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)',
-                        color: '#c9a84c', fontSize: 10, fontWeight: 700,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0, marginTop: 2,
-                      }}>
+                    <li key={i} className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full bg-gold-500/10 border border-gold-500/20 text-gold-400 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                         {i + 1}
                       </span>
                       <p className="text-sm leading-relaxed" style={{ color: 'var(--axiom-muted)' }}>{step}</p>
@@ -914,6 +968,8 @@ export default function Codex({ onClose }) {
       </div>
     </div>
   )
+
+  return createPortal(panel, document.body)
 }
 
 function Section({ title, children }) {

@@ -639,12 +639,34 @@ html.light[data-writing-env]:not([data-writing-env=""]) .scene-editor-wrap .bg-a
   background-color: rgba(248, 246, 240, 0.45) !important;
 }
 
+/* Writing canvas — fills the available writing pane edge-to-edge
+   (navbar + sidebars stay; prose is no longer capped at ~740px). */
+.writing-canvas {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+/* Codex modal — always full viewport via portal; never clipped by sidebar transforms */
+.codex-shell {
+  min-width: 0;
+}
+@media (min-width: 640px) {
+  .codex-nav {
+    width: 220px !important;
+    max-width: 220px !important;
+    min-width: 220px;
+  }
+}
+
 /* ── TipTap Prose Editor (dark) ──────────────────────────────────────────── */
 .tiptap-prose .ProseMirror {
   outline: none;
   min-height: 100%;
   padding-bottom: 40vh;
   caret-color: #c9a84c;
+  width: 100%;
+  max-width: none;
 }
 
 /* Inline variant — stacked scene editors in the chapter writing view share

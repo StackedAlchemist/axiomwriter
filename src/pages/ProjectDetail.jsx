@@ -396,8 +396,8 @@ export default function ProjectDetail() {
           />
         </div>
 
-        {/* Editor area */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* Editor area — grows to fill remaining viewport (border-to-border under the nav) */}
+        <div className="flex-1 min-w-0 flex overflow-hidden">
           {ms.activeChapterId && !ms.activeSceneId ? (
             <ChapterView
               chapter={getAllChapters(ms.structure).find(ch => ch.id === ms.activeChapterId)}
