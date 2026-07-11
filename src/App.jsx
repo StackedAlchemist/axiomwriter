@@ -36,6 +36,10 @@ const SeriesView        = lazy(() => import('./pages/SeriesView'))
 const ReaderView        = lazy(() => import('./pages/ReaderView'))
 const Terms             = lazy(() => import('./pages/Legal').then(m => ({ default: m.Terms })))
 const Privacy           = lazy(() => import('./pages/Legal').then(m => ({ default: m.Privacy })))
+const PricingPage       = lazy(() => import('./pages/Pricing'))
+const FAQPage           = lazy(() => import('./pages/FAQ'))
+const AboutPage         = lazy(() => import('./pages/About'))
+const HelpPage          = lazy(() => import('./pages/Help'))
 
 function PageLoader() {
   return (
@@ -80,6 +84,10 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/terms"           element={<Suspense fallback={<PageLoader />}><Terms /></Suspense>} />
           <Route path="/privacy"         element={<Suspense fallback={<PageLoader />}><Privacy /></Suspense>} />
+          <Route path="/pricing"         element={<Suspense fallback={<PageLoader />}><PricingPage /></Suspense>} />
+          <Route path="/faq"             element={<Suspense fallback={<PageLoader />}><FAQPage /></Suspense>} />
+          <Route path="/about"           element={<Suspense fallback={<PageLoader />}><AboutPage /></Suspense>} />
+          <Route path="/help"            element={<Suspense fallback={<PageLoader />}><HelpPage /></Suspense>} />
           <Route path="/read/:shareId"   element={<Suspense fallback={<PageLoader />}><ReaderView /></Suspense>} />
 
           {/* Protected app routes */}

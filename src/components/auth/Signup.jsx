@@ -9,8 +9,8 @@ export default function Signup() {
   const navigate   = useNavigate()
 
   usePageMeta({
-    title: 'Create Your Free Account',
-    description: 'Create a free Axiomwriter account — manuscript editor, characters, and your first project free. Paid plans start with a 7-day free trial.',
+    title: 'Claim Your Desk',
+    description: 'Create a free Axiomwriter home — manuscript editor, characters, and your first project free. Come in and build that world.',
     path: '/signup',
   })
 
@@ -62,25 +62,74 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-axiom-bg flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-noise pointer-events-none" />
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] rounded-full bg-gradient-radial from-teal-500/5 via-transparent to-transparent pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-gradient-radial from-gold-500/5 via-transparent to-transparent pointer-events-none" />
+    <div className="min-h-screen relative overflow-hidden flex flex-col">
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/writing-desk-login.png')" }}
+        aria-hidden="true"
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(160deg, rgba(6,11,20,0.84) 0%, rgba(6,11,20,0.58) 45%, rgba(6,11,20,0.8) 100%)',
+        }}
+        aria-hidden="true"
+      />
+      <div className="absolute inset-0 bg-noise pointer-events-none opacity-50" aria-hidden="true" />
 
-      <div className="w-full max-w-md animate-slide-up relative z-10">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gold-500/10 border border-gold-500/20 mb-4">
+      <header className="relative z-10 flex items-center justify-between px-5 sm:px-8 py-5">
+        <Link to="/" className="flex items-center gap-2.5">
+          <span
+            className="inline-flex items-center justify-center w-9 h-9 rounded-xl"
+            style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.28)' }}
+          >
+            <Feather className="w-5 h-5 text-gold-400" />
+          </span>
+          <span className="font-serif text-lg font-semibold text-slate-100">Axiomwriter</span>
+        </Link>
+        <Link to="/login" className="text-sm text-slate-300 hover:text-gold-400 transition-colors">
+          Already home? <span className="text-gold-400">Sign in</span>
+        </Link>
+      </header>
+
+      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md animate-slide-up">
+        <div className="text-center mb-7">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gold-500/85 mb-3">
+            Welcome home, author
+          </p>
+          <div
+            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
+            style={{
+              background: 'rgba(201,168,76,0.12)',
+              border: '1px solid rgba(201,168,76,0.28)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
             <Feather className="w-7 h-7 text-gold-400" />
           </div>
-          <h1 className="font-serif text-3xl font-semibold text-slate-100">Axiom</h1>
-          <p className="text-slate-500 text-sm mt-1 tracking-wide">by Stacked Alchemist</p>
+          <h1 className="font-serif text-3xl font-semibold text-slate-50 tracking-tight">
+            Claim your desk.
+          </h1>
+          <p className="mt-2 text-slate-300/85 text-sm leading-relaxed max-w-sm mx-auto">
+            Free forever to start. Come in — let’s build that fantasy world together.
+          </p>
         </div>
 
-        {/* Card */}
-        <div className="card p-8">
-          <h2 className="font-serif text-xl font-semibold text-slate-100 mb-1">Begin your story</h2>
-          <p className="text-slate-500 text-sm mb-6">Create your Axiom account</p>
+        <div
+          className="p-7 sm:p-8"
+          style={{
+            background: 'rgba(10, 16, 28, 0.72)',
+            backdropFilter: 'blur(22px)',
+            WebkitBackdropFilter: 'blur(22px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '1.35rem',
+            boxShadow: '0 12px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
+          }}
+        >
+          <h2 className="font-serif text-xl font-semibold text-slate-100 mb-0.5">Create your free home</h2>
+          <p className="text-slate-400/80 text-sm mb-6">Manuscript, cast, and lore — ready when you are.</p>
 
           {error && (
             <div className="flex items-start gap-2.5 bg-red-900/20 border border-red-800/40 rounded-lg px-4 py-3 mb-5">
@@ -101,6 +150,7 @@ export default function Signup() {
                 onChange={handleChange}
                 placeholder="Your pen name or real name"
                 className="input-base"
+                style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)' }}
               />
             </div>
 
@@ -115,6 +165,7 @@ export default function Signup() {
                 onChange={handleChange}
                 placeholder="you@example.com"
                 className="input-base"
+                style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)' }}
               />
             </div>
 
@@ -130,6 +181,7 @@ export default function Signup() {
                   onChange={handleChange}
                   placeholder="••••••••"
                   className="input-base pr-10"
+                  style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)' }}
                 />
                 <button
                   type="button"
@@ -152,6 +204,7 @@ export default function Signup() {
                 onChange={handleChange}
                 placeholder="••••••••"
                 className="input-base"
+                style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)' }}
               />
             </div>
 
@@ -167,19 +220,22 @@ export default function Signup() {
               </ul>
             )}
 
-            <button type="submit" disabled={loading} className="btn-primary w-full mt-2">
+            <button type="submit" disabled={loading} className="btn-primary w-full mt-2 py-3">
               {loading ? (
-                <span className="flex items-center gap-2">
-                  <Spinner /> Creating account…
+                <span className="flex items-center gap-2 justify-center">
+                  <Spinner /> Preparing your den…
                 </span>
-              ) : 'Create Account'}
+              ) : 'Open the den free'}
             </button>
           </form>
 
           <div className="relative my-6">
-            <div className="divider" />
-            <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-axiom-surface px-3 text-xs text-slate-600">
-              or continue with
+            <div className="divider" style={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+            <span
+              className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 text-xs text-slate-500"
+              style={{ background: 'rgba(10, 16, 28, 0.9)' }}
+            >
+              or
             </span>
           </div>
 
@@ -188,25 +244,27 @@ export default function Signup() {
             onClick={handleGoogleSignIn}
             disabled={googleLoading || loading}
             className="btn-secondary w-full flex items-center justify-center gap-3"
+            style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.10)' }}
           >
             {googleLoading ? <Spinner /> : <GoogleIcon />}
-            Sign up with Google
+            Continue with Google
           </button>
 
-          <p className="text-center text-xs text-slate-600 mt-4">
-            Already have an account?{' '}
-            <Link to="/login" className="text-gold-500 hover:text-gold-400 transition-colors">
+          <p className="text-center text-xs text-slate-500 mt-5">
+            Already have a desk?{' '}
+            <Link to="/login" className="text-gold-400 hover:text-gold-300 transition-colors font-medium">
               Sign in
             </Link>
           </p>
         </div>
 
-        <p className="text-center text-xs text-slate-600 mt-6">
+        <p className="text-center text-xs text-slate-600 mt-6 max-w-sm mx-auto">
           By creating an account you agree to our{' '}
-          <Link to="/terms" className="text-slate-400 underline underline-offset-2 hover:text-gold-400 transition-colors">Terms of Service</Link>
+          <Link to="/terms" className="text-slate-400 underline underline-offset-2 hover:text-gold-400 transition-colors">Terms</Link>
           {' '}and{' '}
           <Link to="/privacy" className="text-slate-400 underline underline-offset-2 hover:text-gold-400 transition-colors">Privacy Policy</Link>.
         </p>
+      </div>
       </div>
     </div>
   )
