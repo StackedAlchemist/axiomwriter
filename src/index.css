@@ -2,26 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Theme CSS Variables ──────────────────────────────────────────────────── */
+/* ── Theme CSS Variables — Writer's Den ─────────────────────────────────────
+   Dark: ink, polished walnut, candle gold
+   Light: parchment, pale marble, warm brass
+*/
 :root {
-  /* Dark mode (default) */
-  --axiom-bg:           #080818;
-  --axiom-surface:      #0d0d2b;
-  --axiom-surface2:     #141430;
-  --axiom-border:       rgba(201,168,76,0.15);
-  --axiom-border-light: rgba(201,168,76,0.30);
-  --axiom-text:         #f0ece2;
-  --axiom-muted:        #8a8590;
+  --axiom-bg:           #07060f;
+  --axiom-surface:      #0e0d1c;
+  --axiom-surface2:     #161428;
+  --axiom-border:       rgba(201,168,76,0.12);
+  --axiom-border-light: rgba(201,168,76,0.28);
+  --axiom-text:         #f3efe6;
+  --axiom-muted:        #8f8894;
+  --den-wood:           #100e1a;
+  --den-wood-edge:      rgba(201,168,76,0.1);
+  --den-marble:         #090814;
+  --den-highlight:      rgba(255,248,230,0.04);
+  --den-shadow:         0 8px 32px rgba(0,0,0,0.45);
+  --den-inset:          inset 0 1px 0 rgba(255,248,230,0.05);
 }
 
 .light {
-  --axiom-bg:           #f0ede6;
-  --axiom-surface:      #faf8f4;
-  --axiom-surface2:     #ede9e1;
-  --axiom-border:       rgba(120,95,30,0.14);
-  --axiom-border-light: rgba(120,95,30,0.28);
+  --axiom-bg:           #f2ebe0;
+  --axiom-surface:      #faf6ef;
+  --axiom-surface2:     #efe7d9;
+  --axiom-border:       rgba(110,85,35,0.12);
+  --axiom-border-light: rgba(110,85,35,0.26);
   --axiom-text:         #1a1208;
   --axiom-muted:        #6b6050;
+  --den-wood:           #f4ebe0;
+  --den-wood-edge:      rgba(110,85,35,0.12);
+  --den-marble:         #f7f1e7;
+  --den-highlight:      rgba(255,255,255,0.55);
+  --den-shadow:         0 8px 28px rgba(60,40,10,0.08);
+  --den-inset:          inset 0 1px 0 rgba(255,255,255,0.7);
 }
 
 @layer base {
@@ -128,9 +142,10 @@
            transition-all duration-200;
   }
 
-  /* Card */
+  /* Card — elevated den surface */
   .card {
-    @apply bg-axiom-surface border border-axiom-border rounded-xl shadow-card;
+    @apply bg-axiom-surface border border-axiom-border rounded-xl;
+    box-shadow: var(--den-shadow), var(--den-inset);
   }
 
   /* Divider */
@@ -141,14 +156,20 @@
   /* Nav item */
   .nav-item {
     @apply flex items-center gap-3 px-3 py-2.5 rounded-lg
-           hover:bg-axiom-surface2
            font-medium text-sm transition-all duration-150 cursor-pointer;
     color: var(--axiom-muted);
   }
-  .nav-item:hover { color: var(--axiom-text); }
+  .nav-item:hover {
+    color: var(--axiom-text);
+    background: var(--axiom-surface2);
+  }
 
   .nav-item.active {
-    @apply text-gold-400 bg-gold-500/10 hover:bg-gold-500/15;
+    @apply text-gold-400;
+    background: rgba(201,168,76,0.1);
+  }
+  .nav-item.active:hover {
+    background: rgba(201,168,76,0.14);
   }
 
   /* Badge */
@@ -166,11 +187,307 @@
 
   /* Icon button */
   .btn-icon {
-    @apply p-1.5 rounded-lg hover:bg-axiom-surface2
-           transition-all duration-200;
+    @apply p-1.5 rounded-lg transition-all duration-200;
     color: var(--axiom-muted);
   }
-  .btn-icon:hover { color: var(--axiom-text); }
+  .btn-icon:hover {
+    color: var(--axiom-text);
+    background: var(--axiom-surface2);
+  }
+}
+
+/* ── Writer's Den chrome ─────────────────────────────────────────────────── */
+
+.den-shell {
+  background: var(--axiom-bg);
+}
+
+.den-stage {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(201,168,76,0.04), transparent 55%),
+    var(--den-marble);
+}
+
+.light .den-stage {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(201,168,76,0.06), transparent 55%),
+    linear-gradient(180deg, #faf6ef 0%, #f2ebe0 100%);
+}
+
+.den-sidebar {
+  background: var(--den-wood);
+  border-right: 1px solid var(--den-wood-edge);
+  box-shadow: 4px 0 24px rgba(0,0,0,0.18);
+}
+
+.light .den-sidebar {
+  box-shadow: 4px 0 20px rgba(60,40,10,0.06);
+}
+
+.den-sidebar-grain {
+  background-image:
+    linear-gradient(180deg, rgba(201,168,76,0.03) 0%, transparent 40%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  opacity: 1;
+}
+
+.den-sidebar-header {
+  border-bottom: 1px solid var(--den-wood-edge);
+  background: linear-gradient(180deg, var(--den-highlight), transparent);
+}
+
+.den-sidebar-footer {
+  border-top: 1px solid var(--den-wood-edge);
+  background: linear-gradient(0deg, rgba(0,0,0,0.12), transparent);
+}
+
+.light .den-sidebar-footer {
+  background: linear-gradient(0deg, rgba(80,50,10,0.04), transparent);
+}
+
+.den-mark {
+  background: linear-gradient(145deg, rgba(201,168,76,0.18), rgba(201,168,76,0.06));
+  border: 1px solid rgba(201,168,76,0.28);
+  box-shadow: inset 0 1px 0 rgba(255,248,230,0.1), 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.den-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--den-wood-edge), transparent);
+}
+
+.den-v-rule {
+  width: 1px;
+  height: 1rem;
+  background: var(--axiom-border);
+  flex-shrink: 0;
+}
+
+.den-nav-item {
+  border: 1px solid transparent;
+}
+.den-nav-item.active {
+  border-color: rgba(201,168,76,0.18);
+  box-shadow: inset 0 1px 0 rgba(255,248,230,0.04);
+}
+
+.den-chip {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  transition: all 0.15s ease;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--axiom-surface2);
+  border: 1px solid var(--axiom-border);
+  color: var(--axiom-muted);
+}
+.den-chip[data-active="true"] {
+  background: rgba(201,168,76,0.14);
+  border-color: rgba(201,168,76,0.35);
+  color: #c9a84c;
+}
+
+.den-user-card:hover {
+  background: var(--axiom-surface2);
+}
+
+.den-collapse-btn {
+  background: var(--axiom-surface);
+  border: 1px solid var(--axiom-border-light);
+  box-shadow: var(--den-shadow);
+  transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+.den-collapse-btn:hover {
+  border-color: rgba(201,168,76,0.5);
+  color: var(--axiom-text) !important;
+  transform: scale(1.05);
+}
+
+.den-topbar {
+  background: color-mix(in srgb, var(--axiom-surface) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--axiom-border);
+  box-shadow: 0 1px 0 var(--den-highlight);
+}
+
+.den-user-pill:hover {
+  background: var(--axiom-surface2);
+}
+
+.den-chrome {
+  background: color-mix(in srgb, var(--axiom-surface) 92%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--axiom-border);
+  box-shadow: 0 1px 0 var(--den-highlight);
+}
+
+.den-nav-scroll {
+  scrollbar-width: none;
+}
+
+.den-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+.den-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.den-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(201,168,76,0.2);
+  border-radius: 999px;
+}
+.den-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(201,168,76,0.4);
+}
+
+/* ── Project nav dropdown menus ──────────────────────────────────────────── */
+
+.nav-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--axiom-muted);
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.nav-menu-trigger:hover {
+  color: var(--axiom-text);
+  background: var(--axiom-surface2);
+}
+.nav-menu-trigger.is-active {
+  color: #d4b865;
+  background: rgba(201,168,76,0.1);
+  border-color: rgba(201,168,76,0.2);
+}
+
+.nav-menu-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #2dd4bf;
+  margin-left: 0.1rem;
+}
+
+.nav-menu-panel {
+  position: fixed;
+  z-index: 9999;
+  width: 260px;
+}
+
+.nav-menu-panel-inner {
+  background: color-mix(in srgb, var(--axiom-surface) 96%, #000 4%);
+  border: 1px solid var(--axiom-border-light);
+  border-radius: 0.85rem;
+  padding: 0.35rem;
+  box-shadow:
+    0 16px 48px rgba(0,0,0,0.45),
+    0 0 0 1px rgba(201,168,76,0.06),
+    inset 0 1px 0 rgba(255,248,230,0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.light .nav-menu-panel-inner {
+  background: rgba(250,246,239,0.98);
+  box-shadow:
+    0 16px 40px rgba(60,40,10,0.12),
+    0 0 0 1px rgba(110,85,35,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+}
+
+.nav-menu-section {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--axiom-muted);
+  padding: 0.45rem 0.65rem 0.25rem;
+}
+
+.nav-menu-divider {
+  height: 1px;
+  margin: 0.3rem 0.5rem;
+  background: var(--axiom-border);
+}
+
+.nav-menu-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.6rem;
+  border-radius: 0.55rem;
+  border: 1px solid transparent;
+  transition: all 0.12s ease;
+  color: var(--axiom-muted);
+}
+.nav-menu-item:hover:not(.is-disabled) {
+  background: var(--axiom-surface2);
+  color: var(--axiom-text);
+  border-color: var(--axiom-border);
+}
+.nav-menu-item.is-active {
+  background: rgba(201,168,76,0.1);
+  border-color: rgba(201,168,76,0.22);
+  color: #d4b865;
+}
+.nav-menu-item.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.nav-menu-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.4rem;
+  flex-shrink: 0;
+  background: rgba(201,168,76,0.08);
+  color: #c9a84c;
+}
+
+.nav-menu-item-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: inherit;
+}
+
+.nav-menu-item-desc {
+  display: block;
+  font-size: 10px;
+  line-height: 1.35;
+  margin-top: 0.1rem;
+  color: var(--axiom-muted);
+  opacity: 0.9;
+}
+
+.nav-menu-item-meta {
+  font-size: 10px;
+  font-weight: 700;
+  color: #2dd4bf;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+/* Manuscript binder (in-project sidebar) */
+.den-manuscript {
+  background: var(--den-wood);
+  border-right: 1px solid var(--den-wood-edge);
+}
+.den-ms-header {
+  border-bottom: 1px solid var(--den-wood-edge);
+  background: linear-gradient(180deg, var(--den-highlight), transparent);
 }
 
 @layer utilities {
@@ -280,9 +597,16 @@
   -webkit-backdrop-filter: blur(10px);
 }
 
-/* Header — frosted glass strip */
+/* Header — frosted glass strip over the den */
 :root[data-writing-env]:not([data-writing-env=""]) .project-detail-header {
-  background: rgba(13, 13, 43, 0.82) !important;
+  background: rgba(14, 13, 28, 0.78) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Manuscript binder — frosted over environment */
+:root[data-writing-env]:not([data-writing-env=""]) .den-manuscript {
+  background: rgba(14, 13, 28, 0.78) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }

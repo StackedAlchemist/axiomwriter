@@ -119,8 +119,8 @@ export default function Projects() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="font-serif text-2xl font-semibold text-slate-100">Projects</h2>
-          <p className="text-slate-500 text-sm mt-0.5">Your novels, stories, and manuscripts</p>
+          <h2 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: 'var(--axiom-text)' }}>Library</h2>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--axiom-muted)' }}>Every novel, story, and manuscript in one place</p>
         </div>
         <div className="flex items-center gap-2">
 

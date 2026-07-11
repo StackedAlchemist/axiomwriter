@@ -3,7 +3,8 @@ import ComposerPanel from '../components/composer/ComposerPanel'
 import PauseDetectionBar from '../components/composer/PauseDetectionBar'
 import { usePauseDetection } from '../hooks/usePauseDetection'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { ArrowLeft, Upload, Download, Focus, Loader2, Users, BookOpen, ExternalLink, Search, GitBranch, ClipboardCheck, Globe, ImageIcon, Rocket, Sun, Moon, Sparkles, Share2, X, ChevronDown, ChevronRight, FolderOpen, Menu } from 'lucide-react'
+import { Loader2, Users, BookOpen, ExternalLink, Search, GitBranch, X } from 'lucide-react'
+import ProjectNav from '../components/layout/ProjectNav'
 import StructureScorePanel from '../components/manuscript/StructureScorePanel'
 import { useTheme } from '../contexts/ThemeContext'
 import { useWritingTheme } from '../contexts/WritingThemeContext'
@@ -19,7 +20,6 @@ import ImportDocxModal from '../components/manuscript/ImportDocxModal'
 import ExportDocxModal from '../components/manuscript/ExportDocxModal'
 import CharacterQuickRef from '../components/characters/CharacterQuickRef'
 import LoadingSpinner from '../components/common/LoadingSpinner'
-import LayoutSelector from '../components/layout/LayoutSelector'
 import ScenesGridLayout from './layouts/ScenesGridLayout'
 import ThreadsLayout from './layouts/ThreadsLayout'
 import CorkboardLayout from './layouts/CorkboardLayout'
@@ -70,13 +70,7 @@ export default function ProjectDetail() {
   const [editorTab,            setEditorTab]            = useState('write') // survives scene switches
   const [showStructurePanel,   setShowStructurePanel]   = useState(false)
   const [structurePanelPos,    setStructurePanelPos]    = useState({ left: 0, top: 52 })
-  const [showFilesDropdown,    setShowFilesDropdown]    = useState(false)
-  const [filesBtnPos,          setFilesBtnPos]          = useState({ left: 0, top: 52 })
   const editorRef        = useRef(null)
-  const structureBtnRef  = useRef(null)
-  const filesBtnRef      = useRef(null)
-  const navScrollRef     = useRef(null)
-  const [navScroll,      setNavScroll]      = useState({ left: false, right: false })
   const { markActivity, isPaused } = usePauseDetection()
   const { theme, toggle: toggleTheme } = useTheme()
   const { currentTheme: writingTheme } = useWritingTheme()
@@ -235,44 +229,40 @@ export default function ProjectDetail() {
     }
   }, [ms.structure, ms.activeSceneId, ms.activeSceneContent, characters, triggerAnalysis, threads, updateThread, projectId])
 
-  // Header nav scroll affordance — show fade/chevron hints only when over-scrollable (P0.2)
-  const updateNavScroll = useCallback(() => {
-    const el = navScrollRef.current
-    if (!el) return
-    setNavScroll({
-      left:  el.scrollLeft > 4,
-      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
-    })
-  }, [])
+  // Close structure panel when clicking outside it
   useEffect(() => {
-    updateNavScroll()
-    window.addEventListener('resize', updateNavScroll)
-    return () => window.removeEventListener('resize', updateNavScroll)
-  }, [updateNavScroll])
-
-  // Close floating panels when clicking outside them
-  useEffect(() => {
-    if (!showStructurePanel && !showFilesDropdown) return
-    function handle() { setShowStructurePanel(false); setShowFilesDropdown(false) }
+    if (!showStructurePanel) return
+    function handle(e) {
+      if (e.target.closest?.('[data-structure-panel]')) return
+      setShowStructurePanel(false)
+    }
     document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
-  }, [showStructurePanel, showFilesDropdown])
+  }, [showStructurePanel])
 
   function handleStructureClick() {
     if (devEditScanning) return
     if (showStructurePanel) { setShowStructurePanel(false); return }
-    const rect = structureBtnRef.current?.getBoundingClientRect()
-    if (rect) setStructurePanelPos({ left: Math.min(rect.left, window.innerWidth - 340), top: rect.bottom + 6 })
-    setShowFilesDropdown(false)
+    // Anchor near the Story menu cluster (center-right of header)
+    const left = Math.min(Math.max(window.innerWidth * 0.35, 16), window.innerWidth - 340)
+    setStructurePanelPos({ left, top: 52 })
     setShowStructurePanel(true)
   }
 
-  function handleFilesClick() {
-    if (showFilesDropdown) { setShowFilesDropdown(false); return }
-    const rect = filesBtnRef.current?.getBoundingClientRect()
-    if (rect) setFilesBtnPos({ left: Math.min(rect.left, window.innerWidth - 210), top: rect.bottom + 6 })
-    setShowStructurePanel(false)
-    setShowFilesDropdown(true)
+  function handleProjectNavigate(dest) {
+    const map = {
+      threads:  `/projects/${projectId}/threads`,
+      lore:     `/projects/${projectId}/lore`,
+      map:      `/projects/${projectId}/map`,
+      cover:    `/projects/${projectId}/cover`,
+      publish:  `/projects/${projectId}/publish`,
+    }
+    if (map[dest]) navigate(map[dest])
+  }
+
+  function handleGate(feature) {
+    setPricingFeature(feature)
+    setShowPricing(true)
   }
 
   if (ms.loading) return <LoadingSpinner fullscreen />
@@ -281,13 +271,6 @@ export default function ProjectDetail() {
       {ms.error}
     </div>
   )
-
-  const SaveIndicator = () => {
-    if (saveStatus === 'saving')  return <span className="text-slate-500 text-xs flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>
-    if (saveStatus === 'unsaved') return <span className="text-slate-600 text-xs">Unsaved changes</span>
-    if (saveStatus === 'error')   return <span className="text-red-500 text-xs">Save failed</span>
-    return <span className="text-slate-600 text-xs">Saved</span>
-  }
 
   return (
     <div className="project-detail-root flex flex-col h-screen overflow-hidden bg-axiom-bg">
@@ -299,213 +282,41 @@ export default function ProjectDetail() {
               environment sits behind, not over, the app ── */}
       <div className="project-detail-content relative z-[1] flex flex-col flex-1 min-h-0">
 
-      {/* ── Top bar ─────────────────────────────────────────────────────── */}
-      <header className={`
-        project-detail-header
-        flex items-center h-12 px-2 md:px-4 gap-1
-        bg-axiom-surface border-b border-axiom-border flex-shrink-0
-        transition-opacity duration-400
-        ${focusMode ? 'focus-mode-dim' : ''}
-      `}>
-        <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
-          {/* Mobile: open manuscript drawer (single-panel rule) */}
-          {activeLayout === 'linear' && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="btn-icon flex-shrink-0 md:hidden"
-              title="Open manuscript"
-            >
-              <Menu className="w-4 h-4" />
-            </button>
-          )}
-          <button
-            onClick={() => navigate('/projects')}
-            className="btn-icon flex-shrink-0"
-            title="Back to Projects"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div className="hidden sm:block">
-            <h1 className="font-serif font-semibold text-slate-100 text-sm truncate max-w-[120px]">
-              {ms.project?.title ?? '…'}
-            </h1>
-            {ms.project?.seriesName && (
-              <p className="text-xs text-slate-600 truncate max-w-[120px]">{ms.project.seriesName}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Scrollable nav — with fade/chevron affordance when over-scrollable (P0.2) */}
-        <div className="relative flex-1 min-w-0">
-        <div
-          ref={navScrollRef}
-          onScroll={updateNavScroll}
-          className="flex items-center gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
-        >
-          <LayoutSelector
-            activeLayout={activeLayout}
-            locked={!canAccess('all_layouts')}
-            onSelect={id => {
-              if (id !== 'linear' && !canAccess('all_layouts')) {
-                setPricingFeature('Editor Layouts')
-                setShowPricing(true)
-                return
-              }
-              setActiveLayout(id)
-            }}
-          />
-          <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />
-          <SaveIndicator />
-          <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />
-
-          {/* ── Writing tools ── */}
-          <button
-            onClick={() => { setShowCharPanel(p => !p); setQuickRefChar(null) }}
-            className={`btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0 ${showCharPanel ? 'text-gold-400' : ''}`}
-            title="Characters — view and reference your cast while writing"
-          >
-            <Users className="w-3.5 h-3.5" />
-            Characters
-          </button>
-          <button
-            onClick={() => canAccess('thread_detector')
-              ? navigate(`/projects/${projectId}/threads`)
-              : (setPricingFeature('Thread Detector'), setShowPricing(true))}
-            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
-            title="Threads — track narrative arcs and open plot lines across scenes"
-          >
-            <GitBranch className="w-3.5 h-3.5" />
-            Threads
-          </button>
-          <button
-            ref={structureBtnRef}
-            onClick={handleStructureClick}
-            className={`btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0 ${showStructurePanel ? 'text-gold-400' : ''} ${devEditScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title="Structural Health — click to see your manuscript's pacing, POV, dialogue, and more"
-          >
-            {devEditScanning
-              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              : <ClipboardCheck className="w-3.5 h-3.5" />}
-            Structure
-            {devEditHealthScore != null && (
-              <span className={`text-[10px] font-bold ml-0.5 ${devEditHealthScore >= 85 ? 'text-teal-400' : devEditHealthScore >= 60 ? 'text-gold-400' : 'text-red-400'}`}>
-                {devEditHealthScore}
-              </span>
-            )}
-          </button>
-
-          <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />
-
-          {/* ── Project destinations ── */}
-          <button
-            onClick={() => canAccess('lore_bible')
-              ? navigate(`/projects/${projectId}/lore`)
-              : (setPricingFeature('Lore Bible'), setShowPricing(true))}
-            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
-            title="Lore Bible — world-building database: factions, magic, history, rules"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            Lore Bible
-          </button>
-          <button
-            onClick={() => canAccess('map_builder')
-              ? navigate(`/projects/${projectId}/map`)
-              : (setPricingFeature('World Map Builder'), setShowPricing(true))}
-            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
-            title="World Map — build and annotate a visual geography of your world"
-          >
-            <Globe className="w-3.5 h-3.5" />
-            Map
-          </button>
-          <button
-            onClick={() => canAccess('cover_generator')
-              ? navigate(`/projects/${projectId}/cover`)
-              : (setPricingFeature('Cover Studio'), setShowPricing(true))}
-            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
-            title="Cover Studio — generate and design your book cover with AI"
-          >
-            <ImageIcon className="w-3.5 h-3.5" />
-            Cover
-          </button>
-          <button
-            onClick={() => canAccess('publishing_export')
-              ? navigate(`/projects/${projectId}/publish`)
-              : (setPricingFeature('Publishing Export'), setShowPricing(true))}
-            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
-            title="Publish — export your manuscript to EPUB, DOCX, or PDF for distribution"
-          >
-            <Rocket className="w-3.5 h-3.5" />
-            Publish
-          </button>
-
-          {/* ── Invite a Reader (always visible — sharing shouldn't hide in a menu) ── */}
-          <button
-            onClick={() => canAccess('reader_sharing')
-              ? setShowShare(true)
-              : (setPricingFeature('Reader Sharing'), setShowPricing(true))}
-            className="btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0"
-            title="Invite a reader — share a read-only link to your manuscript"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            Invite a Reader
-          </button>
-
-          <div className="w-px h-4 bg-axiom-border mx-1 flex-shrink-0" />
-
-          {/* ── Files dropdown (Import / Export / Share) ── */}
-          <button
-            ref={filesBtnRef}
-            onClick={handleFilesClick}
-            className={`btn-ghost text-xs flex items-center gap-1.5 flex-shrink-0 ${showFilesDropdown ? 'text-gold-400' : ''}`}
-            title="Files — import a .docx, export your manuscript, or share a reader link"
-          >
-            <FolderOpen className="w-3.5 h-3.5" />
-            Files
-            <ChevronDown className={`w-3 h-3 transition-transform duration-150 ${showFilesDropdown ? 'rotate-180' : ''}`} />
-          </button>
-
-          {/* ── Utilities ── */}
-          <button
-            onClick={() => setFocusMode(p => !p)}
-            className={`btn-icon flex-shrink-0 ${focusMode ? 'text-gold-400' : ''}`}
-            title="Focus mode — collapse all UI, immerse in writing (press Esc to exit)"
-          >
-            <Focus className="w-4 h-4" />
-          </button>
-          <button
-            onClick={toggleTheme}
-            className="btn-icon flex-shrink-0"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark'
-              ? <Sun  className="w-4 h-4 text-gold-400" />
-              : <Moon className="w-4 h-4 text-gold-500" />
-            }
-          </button>
-          <button
-            onClick={() => setShowThemeSelector(p => !p)}
-            className={`btn-icon flex-shrink-0 ${showThemeSelector ? 'text-gold-400' : ''}`}
-            title="Writing Environment — set a mood with ambient visuals that frame your editor"
-            style={writingTheme.id !== 'none' ? { color: `rgba(${writingTheme.accentRgb},0.9)` } : {}}
-          >
-            <Sparkles className="w-4 h-4" />
-          </button>
-        </div>
-
-          {/* Left fade — appears when scrolled away from start */}
-          <div
-            className={`pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-axiom-surface to-transparent transition-opacity duration-200 ${navScroll.left ? 'opacity-100' : 'opacity-0'}`}
-            aria-hidden="true"
-          />
-          {/* Right fade + chevron hint — appears when more tabs lie off-screen */}
-          <div
-            className={`pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-axiom-surface to-transparent flex items-center justify-end transition-opacity duration-200 ${navScroll.right ? 'opacity-100' : 'opacity-0'}`}
-            aria-hidden="true"
-          >
-            <ChevronRight className="w-4 h-4 text-gold-500/70" />
-          </div>
-        </div>
-      </header>
+      {/* ── Categorized command bar (Story · World · Publish · Files) ── */}
+      <ProjectNav
+        projectTitle={ms.project?.title}
+        seriesName={ms.project?.seriesName}
+        activeLayout={activeLayout}
+        focusMode={focusMode}
+        theme={theme}
+        writingTheme={writingTheme}
+        showCharPanel={showCharPanel}
+        showStructurePanel={showStructurePanel}
+        showThemeSelector={showThemeSelector}
+        saveStatus={saveStatus}
+        devEditScanning={devEditScanning}
+        devEditHealthScore={devEditHealthScore}
+        canAccess={canAccess}
+        onBack={() => navigate('/projects')}
+        onOpenSidebar={() => setSidebarOpen(true)}
+        onLayoutSelect={id => {
+          if (id !== 'linear' && !canAccess('all_layouts')) {
+            handleGate('Editor Layouts')
+            return
+          }
+          setActiveLayout(id)
+        }}
+        onToggleChars={() => { setShowCharPanel(p => !p); setQuickRefChar(null) }}
+        onStructureClick={handleStructureClick}
+        onNavigate={handleProjectNavigate}
+        onGate={handleGate}
+        onImport={() => setShowImport(true)}
+        onExport={() => setShowExport(true)}
+        onShare={() => setShowShare(true)}
+        onToggleFocus={() => setFocusMode(p => !p)}
+        onToggleTheme={toggleTheme}
+        onToggleEnv={() => setShowThemeSelector(p => !p)}
+      />
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
 
@@ -778,68 +589,17 @@ export default function ProjectDetail() {
 
       {/* ── Structure score panel ── */}
       {showStructurePanel && (
-        <StructureScorePanel
-          style={{ left: structurePanelPos.left, top: structurePanelPos.top }}
-          healthScore={devEditHealthScore}
-          isScanning={devEditScanning}
-          suggestions={devEditSuggestions}
-          lastScanAt={devEditLastScanAt}
-          onRunScan={() => { devEditRunManualScan(ms.structure); setShowStructurePanel(false) }}
-          onOpenFinding={finding => { setDevEditFinding(finding); setShowStructurePanel(false) }}
-          onClose={() => setShowStructurePanel(false)}
-        />
-      )}
-
-      {/* ── Files dropdown ── */}
-      {showFilesDropdown && (
-        <div
-          className="fixed z-[300] shadow-2xl rounded-xl overflow-hidden"
-          style={{
-            left: filesBtnPos.left,
-            top: filesBtnPos.top,
-            width: '210px',
-            background: 'rgba(8,10,24,0.98)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255,255,255,0.08)',
-          }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-          <button
-            onClick={() => { setShowImport(true); setShowFilesDropdown(false) }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-axiom-surface2 transition-colors"
-          >
-            <Upload className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-            <div>
-              <p className="text-xs font-medium text-slate-300">Import</p>
-              <p className="text-[10px] text-slate-600">Bring in a .docx manuscript</p>
-            </div>
-          </button>
-          <div className="border-t border-axiom-border mx-3" />
-          <button
-            onClick={() => { setShowExport(true); setShowFilesDropdown(false) }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-axiom-surface2 transition-colors"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-            <div>
-              <p className="text-xs font-medium text-slate-300">Export</p>
-              <p className="text-[10px] text-slate-600">Save as .docx file</p>
-            </div>
-          </button>
-          <div className="border-t border-axiom-border mx-3" />
-          <button
-            onClick={() => {
-              canAccess('reader_sharing') ? setShowShare(true) : (setPricingFeature('Reader Sharing'), setShowPricing(true))
-              setShowFilesDropdown(false)
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-axiom-surface2 transition-colors"
-          >
-            <Share2 className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-            <div>
-              <p className="text-xs font-medium text-slate-300">Share</p>
-              <p className="text-[10px] text-slate-600">Send a reader link</p>
-            </div>
-          </button>
+        <div data-structure-panel>
+          <StructureScorePanel
+            style={{ left: structurePanelPos.left, top: structurePanelPos.top }}
+            healthScore={devEditHealthScore}
+            isScanning={devEditScanning}
+            suggestions={devEditSuggestions}
+            lastScanAt={devEditLastScanAt}
+            onRunScan={() => { devEditRunManualScan(ms.structure); setShowStructurePanel(false) }}
+            onOpenFinding={finding => { setDevEditFinding(finding); setShowStructurePanel(false) }}
+            onClose={() => setShowStructurePanel(false)}
+          />
         </div>
       )}
 

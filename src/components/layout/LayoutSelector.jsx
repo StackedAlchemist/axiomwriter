@@ -114,37 +114,31 @@ export default function LayoutSelector({ activeLayout, onSelect, locked = false 
   const dropdown = open && createPortal(
     <div
       data-layout-dropdown
-      className="fixed z-[9999] bg-axiom-surface border border-axiom-border rounded-xl shadow-card p-2 w-[320px] animate-fade-in"
-      style={{ top: pos.top, left: pos.left }}
+      className="nav-menu-panel animate-fade-in"
+      style={{ top: pos.top, left: pos.left, width: 320 }}
     >
-      <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider px-2 pb-2">View Layout</p>
-      <div className="flex flex-col gap-1">
-        {LAYOUTS.map(layout => (
-          <button
-            key={layout.id}
-            onClick={() => { onSelect(layout.id); setOpen(false) }}
-            className={`
-              flex items-center gap-3 p-2 rounded-lg transition-all text-left
-              ${activeLayout === layout.id
-                ? 'bg-gold-500/15 border border-gold-500/30 text-gold-400'
-                : 'hover:bg-axiom-surface2 border border-transparent text-slate-500 hover:text-slate-300'
-              }
-            `}
-          >
-            <div className="flex-shrink-0">{layout.thumb}</div>
-            <div className="min-w-0">
-              <span className="flex items-center gap-1.5 text-xs font-semibold leading-tight">
-                {layout.name}
-                {locked && layout.id !== 'linear' && (
-                  <Lock className="w-2.5 h-2.5 text-gold-500/70" title="Writer plan and above" />
-                )}
-              </span>
-              <span className={`block text-[10px] leading-snug mt-0.5 ${activeLayout === layout.id ? 'text-gold-400/70' : 'text-slate-600'}`}>
-                {layout.description}
-              </span>
-            </div>
-          </button>
-        ))}
+      <div className="nav-menu-panel-inner">
+        <p className="nav-menu-section">Write · View Layout</p>
+        <div className="flex flex-col gap-0.5">
+          {LAYOUTS.map(layout => (
+            <button
+              key={layout.id}
+              onClick={() => { onSelect(layout.id); setOpen(false) }}
+              className={`nav-menu-item ${activeLayout === layout.id ? 'is-active' : ''}`}
+            >
+              <div className="flex-shrink-0 opacity-80" style={{ color: 'currentColor' }}>{layout.thumb}</div>
+              <div className="min-w-0 flex-1 text-left">
+                <span className="nav-menu-item-label flex items-center gap-1.5">
+                  {layout.name}
+                  {locked && layout.id !== 'linear' && (
+                    <Lock className="w-2.5 h-2.5 text-gold-500/70" title="Writer plan and above" />
+                  )}
+                </span>
+                <span className="nav-menu-item-desc">{layout.description}</span>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>,
     document.body
@@ -155,12 +149,12 @@ export default function LayoutSelector({ activeLayout, onSelect, locked = false 
       <button
         ref={btnRef}
         onClick={() => open ? setOpen(false) : openDropdown()}
-        className={`btn-ghost text-xs flex items-center gap-1.5 ${open ? 'text-gold-400' : ''}`}
-        title="Change layout"
+        className={`nav-menu-trigger ${open ? 'is-active' : ''}`}
+        title="Write — change manuscript layout"
       >
-        <LayoutTemplate className="w-3.5 h-3.5" />
-        {current.name}
-        <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <LayoutTemplate className="w-3.5 h-3.5 flex-shrink-0 opacity-80" />
+        <span className="truncate">{current.name}</span>
+        <ChevronDown className={`w-3 h-3 flex-shrink-0 opacity-50 transition-transform duration-200 ${open ? 'rotate-180 opacity-90' : ''}`} />
       </button>
       {dropdown}
     </>

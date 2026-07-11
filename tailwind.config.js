@@ -52,7 +52,8 @@ export default {
       boxShadow: {
         'glow-gold': '0 0 20px rgba(201,168,76,0.15)',
         'glow-teal': '0 0 20px rgba(0,180,160,0.15)',
-        'card':      '0 4px 24px rgba(0,0,0,0.4)',
+        'card':      '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,248,230,0.04)',
+        'den':       '0 12px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(201,168,76,0.06)',
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

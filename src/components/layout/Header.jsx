@@ -5,10 +5,10 @@ import { useTheme } from '../../contexts/ThemeContext'
 import { Feather, Sun, Moon, Menu } from 'lucide-react'
 
 const ROUTE_META = {
-  '/dashboard': { title: 'Dashboard',  subtitle: 'Your writing command center' },
-  '/projects':  { title: 'Projects',   subtitle: 'Manage your stories'          },
-  '/settings':  { title: 'Settings',   subtitle: 'Preferences & account'        },
-  '/profile':   { title: 'Profile',    subtitle: 'Your writer identity'          },
+  '/dashboard': { title: 'Home',     subtitle: 'Your writing command center' },
+  '/projects':  { title: 'Library',  subtitle: 'Every manuscript in one place' },
+  '/settings':  { title: 'Settings', subtitle: 'Preferences & account' },
+  '/profile':   { title: 'Profile',  subtitle: 'Your writer identity' },
 }
 
 export default function Header({ onMenuClick }) {
@@ -20,8 +20,7 @@ export default function Header({ onMenuClick }) {
   const displayName = userProfile?.displayName || currentUser?.displayName || 'Writer'
 
   return (
-    <header className="h-14 flex items-center justify-between px-4 md:px-6 border-b border-axiom-border bg-axiom-surface/80 backdrop-blur-sm flex-shrink-0">
-      {/* Left: hamburger (mobile) + page title */}
+    <header className="den-topbar h-14 flex items-center justify-between px-4 md:px-6 flex-shrink-0">
       <div className="flex items-center gap-3 min-w-0">
         {onMenuClick && (
           <button
@@ -33,20 +32,18 @@ export default function Header({ onMenuClick }) {
           </button>
         )}
         <div className="min-w-0">
-          <h1 className="font-serif text-base md:text-lg font-semibold leading-tight truncate" style={{ color: 'var(--axiom-text)' }}>
+          <h1 className="font-serif text-base md:text-lg font-semibold leading-tight truncate tracking-tight" style={{ color: 'var(--axiom-text)' }}>
             {meta.title}
           </h1>
           {meta.subtitle && (
-            <p className="text-xs leading-tight hidden sm:block" style={{ color: 'var(--axiom-muted)' }}>
+            <p className="text-[11px] leading-tight hidden sm:block tracking-wide" style={{ color: 'var(--axiom-muted)' }}>
               {meta.subtitle}
             </p>
           )}
         </div>
       </div>
 
-      {/* Right: theme toggle + user greeting */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Dark / Light toggle */}
+      <div className="flex items-center gap-1.5 flex-shrink-0">
         <button
           onClick={toggle}
           className="btn-icon"
@@ -59,10 +56,9 @@ export default function Header({ onMenuClick }) {
           }
         </button>
 
-        {/* User greeting */}
         <NavLink
           to="/profile"
-          className="flex items-center gap-2 hover:bg-axiom-surface2 px-2 md:px-3 py-1.5 rounded-lg transition-colors"
+          className="den-user-pill flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-full transition-all duration-200"
         >
           <span className="text-xs hidden sm:block" style={{ color: 'var(--axiom-muted)' }}>
             Hi, <span className="font-medium" style={{ color: 'var(--axiom-text)' }}>{displayName.split(' ')[0]}</span>

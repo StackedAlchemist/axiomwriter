@@ -266,28 +266,30 @@ export default function ManuscriptSidebar({
     .reduce((s, sc) => s + (sc.wordCount || 0), 0)
 
   return (
-    <aside className="w-full h-full flex flex-col bg-axiom-surface border-r border-axiom-border overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-3 border-b border-axiom-border flex-shrink-0">
+    <aside className="w-full h-full flex flex-col den-manuscript overflow-hidden">
+      {/* Header — polished binder spine */}
+      <div className="flex items-center justify-between px-3 py-3 flex-shrink-0 den-ms-header">
         <div className="flex items-center gap-2">
-          <Layers className="w-3.5 h-3.5 text-slate-600" />
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Manuscript</span>
+          <div className="w-6 h-6 rounded-md flex items-center justify-center bg-gold-500/10 border border-gold-500/20">
+            <Layers className="w-3 h-3 text-gold-400" />
+          </div>
+          <div>
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--axiom-muted)' }}>
+              Manuscript
+            </span>
+            <span className="block text-[10px] mt-0.5" style={{ color: 'var(--axiom-muted)', opacity: 0.75 }}>
+              {totalWords >= 1000 ? `${(totalWords / 1000).toFixed(1)}k` : totalWords} words
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => onAddChapter()} className="p-1 text-slate-600 hover:text-teal-400 transition-colors" title="Add chapter">
+        <div className="flex items-center gap-0.5">
+          <button onClick={() => onAddChapter()} className="btn-icon" title="Add chapter">
             <Plus className="w-3.5 h-3.5" />
           </button>
-          <button onClick={onToggle} className="p-1 text-slate-600 hover:text-slate-300" title="Collapse sidebar">
+          <button onClick={onToggle} className="btn-icon" title="Collapse sidebar">
             <PanelLeftClose className="w-3.5 h-3.5" />
           </button>
         </div>
-      </div>
-
-      {/* Word count pill */}
-      <div className="px-3 py-2 border-b border-axiom-border flex-shrink-0">
-        <span className="text-[11px] text-slate-700">
-          {totalWords >= 1000 ? `${(totalWords/1000).toFixed(1)}k` : totalWords} words total
-        </span>
       </div>
 
       {/* Tree */}

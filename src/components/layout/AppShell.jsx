@@ -4,24 +4,25 @@ import Sidebar from './Sidebar'
 import Header from './Header'
 
 export default function AppShell() {
-  const [collapsed,   setCollapsed]   = useState(false)
-  const [mobileOpen,  setMobileOpen]  = useState(false)
+  const [collapsed,  setCollapsed]  = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="flex h-screen overflow-hidden bg-axiom-bg">
+    <div className="den-shell flex h-screen overflow-hidden">
 
-      {/* Mobile overlay backdrop */}
+      {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/60 md:hidden"
+          className="fixed inset-0 z-30 bg-black/55 backdrop-blur-[2px] md:hidden"
           onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
         />
       )}
 
-      {/* Sidebar — fixed overlay on mobile, static on desktop */}
+      {/* Sidebar — drawer on mobile, static panel on desktop */}
       <div className={`
         fixed inset-y-0 left-0 z-40 md:static md:z-auto
-        transition-transform duration-300 ease-in-out
+        transition-transform duration-300 ease-out
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         <Sidebar
@@ -31,11 +32,11 @@ export default function AppShell() {
         />
       </div>
 
-      {/* Main content */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      {/* Main stage — the "marble floor" writing surface */}
+      <div className="den-stage flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-4 md:p-6 max-w-7xl mx-auto w-full animate-fade-in">
+        <main className="flex-1 overflow-y-auto den-scrollbar">
+          <div className="p-4 md:p-7 max-w-7xl mx-auto w-full animate-fade-in">
             <Outlet />
           </div>
         </main>

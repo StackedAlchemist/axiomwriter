@@ -117,28 +117,46 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 animate-slide-up">
 
-      {/* Welcome hero */}
-      <div className="relative overflow-hidden card p-8">
-        <div className="absolute inset-0 bg-gradient-radial from-gold-500/5 via-transparent to-transparent pointer-events-none" />
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-radial from-teal-500/5 via-transparent to-transparent pointer-events-none" />
+      {/* Welcome hero — step into the den */}
+      <div className="relative overflow-hidden card p-8 md:p-10">
+        <div className="absolute inset-0 bg-gradient-radial from-gold-500/8 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-radial from-teal-500/6 via-transparent to-transparent pointer-events-none" />
+        <div
+          className="absolute inset-0 pointer-events-none opacity-40"
+          style={{
+            backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.04\'/%3E%3C/svg%3E")',
+          }}
+          aria-hidden="true"
+        />
         <div className="relative">
-          <p className="text-sm mb-1" style={{ color: 'var(--axiom-muted)' }}>{greeting}</p>
-          <h2 className="font-serif text-3xl font-semibold mb-2" style={{ color: 'var(--axiom-text)' }}>
+          <p className="text-xs font-medium uppercase tracking-[0.18em] mb-2" style={{ color: 'var(--axiom-muted)' }}>
+            {greeting}
+          </p>
+          <h2 className="font-serif text-3xl md:text-4xl font-semibold mb-3 tracking-tight" style={{ color: 'var(--axiom-text)' }}>
             Welcome back, <span className="text-gradient-gold">{firstName}</span>
           </h2>
-          <p className="max-w-lg text-sm leading-relaxed" style={{ color: 'var(--axiom-muted)' }}>
-            Your story is waiting. Axiom is your creative command center — bring the vision,
-            direct the AI, and craft something remarkable.
+          <p className="max-w-xl text-sm leading-relaxed" style={{ color: 'var(--axiom-muted)' }}>
+            Step into your den. The page is warm, the tools are within reach —
+            bring the vision, and write something that lasts.
           </p>
 
-          <div className="mt-5 flex items-center gap-3 flex-wrap">
+          <div className="mt-6 flex items-center gap-3 flex-wrap">
             <Link to="/projects" className="btn-primary text-sm">
               <BookOpen className="w-4 h-4" />
-              {activeProjects.length === 0 ? 'Start a Project' : 'All Projects'}
+              {activeProjects.length === 0 ? 'Start a Project' : 'Open Library'}
             </Link>
+            {latestProject && (
+              <button
+                onClick={() => navigate(`/projects/${latestProject.id}`)}
+                className="btn-secondary text-sm"
+              >
+                <Feather className="w-4 h-4" />
+                Continue writing
+              </button>
+            )}
             <span className="badge-gold">
               <Zap className="w-3 h-3 mr-1" />
-              AI-Powered Writing
+              AI that knows your world
             </span>
           </div>
         </div>
