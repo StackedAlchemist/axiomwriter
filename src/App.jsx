@@ -7,6 +7,7 @@ import { db } from './firebase/config'
 import InstallPrompt from './components/pwa/InstallPrompt'
 import OfflineIndicator from './components/pwa/OfflineIndicator'
 import FeedbackWidget from './components/pwa/FeedbackWidget'
+import UpdateToast from './components/pwa/UpdateToast'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import AppShell from './components/layout/AppShell'
@@ -127,6 +128,7 @@ export default function App() {
       <OfflineIndicator />
       <InstallPrompt />
       <FeedbackWidget />
+      <UpdateToast />
     </AuthProvider>
     </WritingThemeProvider>
   )

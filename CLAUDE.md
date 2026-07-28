@@ -66,10 +66,10 @@ Commit each shipped feature. Billy tests on his phone at axiomwriter.com after d
 
 1. **Real-time collaboration** (Yjs + TipTap + presence) — the remaining Architect promise; plan as its own sprint.
 2. **Map aesthetics upgrade** — Wonderdraft hand-inked style: ink lineart stamp set, stamp scatter/cluster brush, curved TextPath labels, compass rose, richer parchment (Billy's request).
-3. **Update-available toast** — PWA stale-bundle confusion has bitten twice.
-4. **Automated test coverage** — currently zero. Highest-value first pass: Firestore rules unit tests (especially billing-field lockdown — see `firestore.rules`), then a smoke test for signup → write → upgrade → AI → export.
-5. Small: clean voice_dna gate, ScenesGridLayout's dead `switchLayout` nav state, weight deep-AI features as multiple assists (cost guard), true in-app email invites (needs a provider), ambient audio per writing environment (flag-gated, deferred by design — not a bug).
-6. Map "AI background" generation currently keys off a client-side `VITE_STABILITY_API_KEY` check for whether to show the AI option at all, even though the actual generation call is server-routed through Cloud Functions. Worth auditing so the feature doesn't silently look disabled just because that env var isn't set on the client build.
+3. **Automated test coverage** — `npm run test:rules` covers the Firestore billing-field lockdown and the `aiSuggestions` quota-delete lockdown (`test/firestore.rules.test.js`, via `@firebase/rules-unit-testing` + the Firestore emulator). Still missing: a smoke test for signup → write → upgrade → AI → export.
+4. Small: clean voice_dna gate, ScenesGridLayout's dead `switchLayout` nav state, weight deep-AI features as multiple assists (cost guard), true in-app email invites (needs a provider), ambient audio per writing environment (flag-gated, deferred by design — not a bug).
+
+**Done 2026-07-28:** PWA update-available toast (`UpdateToast.jsx` — listens for `serviceworker.controllerchange` after a prior controller existed, since `sw.js` already calls `skipWaiting()`/`clients.claim()` on every deploy). Map "AI background" generation no longer gates on a client-side `VITE_STABILITY_API_KEY` check (that env var is never set on the client by design — the gate was silently forcing every map generation to procedural even for paying Composer/Architect tiers; `generateStabilityBackground()` already calls the server-routed `generateImage` function and fails gracefully, so the client-side pre-check was pure regression, not a safeguard).
 
 ## WRITING CONTEXT
 

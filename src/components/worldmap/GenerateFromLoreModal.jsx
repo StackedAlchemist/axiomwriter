@@ -43,14 +43,14 @@ export default function GenerateFromLoreModal({ loreEntries, onClose, onCreate }
       setProgress('Generating map background…')
       let backgroundData = null
 
-      // Try Stability AI first (if key set), fall back to procedural
-      if (import.meta.env.VITE_STABILITY_API_KEY) {
-        setProgress('Generating AI map background (Stability AI)…')
-        backgroundData = await generateStabilityBackground(
-          analysis?.mapDescription || `A ${style} world map`,
-          style
-        )
-      }
+      // Generation is server-routed through the generateImage Cloud Function
+      // (the Stability key lives only server-side) — always attempt it and
+      // fall back to procedural if it's unavailable or the call fails.
+      setProgress('Generating AI map background…')
+      backgroundData = await generateStabilityBackground(
+        analysis?.mapDescription || `A ${style} world map`,
+        style
+      )
 
       if (!backgroundData) {
         setProgress('Generating procedural map background…')
