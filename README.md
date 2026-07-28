@@ -57,5 +57,4 @@ Firebase project: `axiom-writer` (console) · Hosting serves `dist/`.
 
 ## Project docs
 
-- `CLAUDE.md` — session conventions and priorities for AI-assisted development
-- `axiom-fluidity-sprint.md` — mobile UX audit and fix specification
+- `CLAUDE.md` — session conventions, current status, and priorities for AI-assisted development

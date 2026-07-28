@@ -23,11 +23,21 @@ service cloud.firestore {
 
     // ── Users ──────────────────────────────────────────────────────────────────
     // Each user owns exactly one document keyed by their UID.
-    // Stripe Cloud Functions update subscription fields via admin SDK (bypasses rules).
+    // Stripe Cloud Functions update billing fields via admin SDK (bypasses rules).
+    // Billing fields are admin-only: callAI/generateImage trust subscription.tier
+    // and subscription.status straight from this doc to authorize paid AI usage,
+    // so a client-writable subscription field would let a user grant themselves
+    // free paid-tier access and spend against our Anthropic/Stability accounts.
     match /users/{userId} {
-      allow read, update: if isAuth() && uid() == userId;
-      allow create:       if isAuth() && uid() == userId;
-      allow delete:       if false;
+      allow read: if isAuth() && uid() == userId;
+
+      allow create: if isAuth() && uid() == userId &&
+        !request.resource.data.keys().hasAny(['subscription', 'stripeCustomerId']);
+
+      allow update: if isAuth() && uid() == userId &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription', 'stripeCustomerId']);
+
+      allow delete: if false;
 
       // Monthly AI usage counters
       match /usage/{monthKey} {
